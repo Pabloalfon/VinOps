@@ -29,12 +29,21 @@ el suelo, las técnicas de cultivo y los procesos de fermentación. Esto signifi
 los criterios de evaluación deben adaptarse continuamente, algo que los procedimientos 
 manuales actuales no están diseñados para hacer de forma ágil y automatizada.
 
-El problema que aborda el proyecto es, por un lado, la necesidad de automatizar 
-y objetivar la identificación de la variedad vinícola a partir de datos medibles en 
-laboratorio; por otro, la necesidad de disponer de un sistema que se mantenga 
-fiable en el tiempo, capaz de detectar cuándo las características de los nuevos lotes 
-de producción se alejan de los patrones conocidos y de alertar al equipo técnico para que 
-tome las medidas oportunas.
+El problema que aborda este proyecto tiene dos componentes complementarios. 
+El \textbf{componente principal} es la clasificación supervisada de la 
+variedad vinícola: dado un análisis fisicoquímico de una muestra, el sistema 
+debe identificar a cuál de los tres cultivares pertenece. Este componente 
+se abordará directamente con el dataset UCI Wine Recognition, que proporciona 
+etiquetas de clase para las 178 muestras disponibles.
+
+El \textbf{componente secundario} es la detección de anomalías en nuevos 
+lotes de producción. Dado que las características del vino varían con cada 
+cosecha, el sistema debe ser capaz de identificar muestras cuya composición 
+fisicoquímica se aleja significativamente de los patrones aprendidos durante 
+el entrenamiento, alertando al equipo técnico antes de que el modelo realice 
+una clasificación poco fiable. Este componente se implementará analizando 
+las distribuciones estadísticas de las variables del dataset y definiendo 
+umbrales de desviación a partir de los datos de entrenamiento.
 
 En definitiva, no se trata solamente de predecir la calidad de un vino, sino de construir 
 un servicio inteligente de apoyo a la decisión que acompañe al enólogo en su 
@@ -137,7 +146,9 @@ siguientes supuestos orientativos:
     \item \textbf{Duración del proyecto:} 3 meses.
     \item \textbf{Equipo técnico:} 4 personas.
     \item \textbf{Dedicación estimada:} 10 horas semanales por persona.
-    \item \textbf{Coste estimado por hora:} 35 euros.
+    \item \textbf{Coste estimado por hora:} 35 euros, valor coherente 
+    con los salarios medios de perfiles técnicos especializados en 
+    datos e inteligencia artificial en España \cite{Glassdoor2024}.
 \end{itemize}
 
 \textit{Los valores anteriores son orientativos y podrían variar 
@@ -149,7 +160,8 @@ técnico contratado.}
 12 \; \text{semanas} \times 35 \; \text{€/hora} = 16{.}800 \; \text{€}
 \]
 
-En cuanto a los beneficios, una bodega mediana realiza aproximadamente 
+En cuanto a los beneficios, según datos del sector vitivinícola 
+español \cite{OEMV2022}, una bodega mediana realiza aproximadamente 
 2.000 análisis de calidad por campaña a un coste estimado de 15 euros 
 por análisis. Automatizando el 70\% de ellos, el ahorro anual sería de 
 21.000 euros. Considerando además la reutilización del sistema en 
@@ -161,6 +173,7 @@ campañas sucesivas, el ROI estimado es el siguiente:
 
 Este resultado indica que el proyecto es económicamente viable desde el 
 primer año, con un retorno creciente en campañas posteriores.
+
 
 % ── 1.3.4 ────────────────────────────────────────────────────────────────────
 \subsection{Valor}
