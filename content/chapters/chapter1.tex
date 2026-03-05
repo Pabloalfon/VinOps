@@ -1,0 +1,198 @@
+\chapter{Hito 1: Definición del problema y determinación del alcance}
+
+En este capítulo se detalla la definición del problema para el proyecto de la 
+asignatura Desarrollo e Integración de Servicios de IA, así como la determinación de 
+su alcance.
+
+% ── 1.1 ─────────────────────────────────────────────────────────────────────
+\section{Contexto y definición del problema}
+
+En la industria vitivinícola, la certificación de la calidad y autenticidad del 
+vino son procesos de gran relevancia económica, legal y reputacional. La correcta 
+identificación de la variedad de uva y la detección de irregularidades en la 
+composición del vino son requisitos indispensables para garantizar el cumplimiento 
+de las normativas de las Denominaciones de Origen, proteger al consumidor frente a 
+fraudes de etiquetado y mantener la competitividad de la bodega en un mercado 
+cada vez más exigente.
+
+Actualmente, este proceso depende casi en su totalidad de dos métodos 
+complementarios: los análisis físico-químicos de laboratorio y la cata sensorial 
+realizada por enólogos expertos. Aunque ambos métodos ofrecen resultados de calidad, 
+presentan limitaciones evidentes cuando se aplican a gran escala. Por un lado, los 
+análisis de laboratorio son precisos pero lentos y costosos. Por otro, la cata 
+sensorial, aunque valiosa, introduce subjetividad y depende de la disponibilidad 
+de personal especializado, lo que dificulta su aplicación sistemática en el día 
+a día de una bodega con alta producción.
+
+Además, las características del vino varían de una cosecha a otra en función del clima, 
+el suelo, las técnicas de cultivo y los procesos de fermentación. Esto significa que 
+los criterios de evaluación deben adaptarse continuamente, algo que los procedimientos 
+manuales actuales no están diseñados para hacer de forma ágil y automatizada.
+
+El problema que aborda el proyecto es, por un lado, la necesidad de automatizar 
+y objetivar la identificación de la variedad vinícola a partir de datos medibles en 
+laboratorio; por otro, la necesidad de disponer de un sistema que se mantenga 
+fiable en el tiempo, capaz de detectar cuándo las características de los nuevos lotes 
+de producción se alejan de los patrones conocidos y de alertar al equipo técnico para que 
+tome las medidas oportunas.
+
+En definitiva, no se trata solamente de predecir la calidad de un vino, sino de construir 
+un servicio inteligente de apoyo a la decisión que acompañe al enólogo en su 
+trabajo diario, aportando consistencia, transparencia y capacidad de respuesta ante los 
+cambios propios del sector.
+
+La fuente de datos seleccionada es el \textit{Wine Recognition Dataset}, 
+disponible en el repositorio UCI Machine Learning Repository \cite{UCIWine}. 
+Recoge análisis fisicoquímicos de vinos italianos de tres cultivares distintos, 
+descritos mediante 13 propiedades químicas. La variable objetivo es la \textbf{clase de cultivo}, que toma tres valores posibles correspondientes a las tres variedades vinícolas presentes en el dataset.
+
+
+% ── 1.2 ─────────────────────────────────────────────────────────────────────
+\section{Objetivos generales y específicos}
+
+El problema puede formularse con la siguiente pregunta: \textit{¿Cómo diseñar un 
+sistema de inteligencia artificial capaz de identificar la variedad de un vino y 
+detectar anomalías en su composición de forma objetiva, consistente y mantenible 
+a lo largo del tiempo, apoyando la toma de decisiones del equipo técnico de una bodega?}
+
+Para dar respuesta a esto, se establece como \textbf{objetivo general} del 
+proyecto diseñar, implementar y desplegar un sistema de inteligencia artificial que 
+permita a una bodega auditar la calidad y autenticidad de su producción vinícola de 
+forma automática, objetiva y continuada, garantizando su utilidad real en un entorno 
+de producción.
+
+Los \textbf{objetivos específicos} que permitirán alcanzar este objetivo general son:
+
+\begin{itemize}
+    \item Formalizar el concepto de calidad y autenticidad vinícola desde un punto de 
+    vista cuantitativo, identificando qué propiedades fisicoquímicas son relevantes 
+    para la diferenciación de variedades.
+    
+    \item Seleccionar y procesar los datos disponibles sobre la composición química del 
+    vino, asegurando su calidad y fiabilidad como base del sistema.
+    
+    \item Implementar y comparar distintos modelos de inteligencia artificial capaces de 
+    identificar la variedad de un vino a partir de su composición, seleccionando el más 
+    adecuado para su uso en producción.
+    
+    \item Evaluar los modelos tanto con métricas técnicas como con criterios alineados con 
+    las necesidades reales del sector vitivinícola.
+    
+    \item Diseñar el sistema como un producto integrable en el flujo de trabajo de una bodega, 
+    mantenible a lo largo del tiempo y capaz de adaptarse a los cambios de cada nueva cosecha.
+    
+    \item Validar el sistema con datos representativos de la producción vinícola real, 
+    garantizando su utilidad práctica para el personal técnico de la bodega.
+\end{itemize}
+
+% ── 1.3 ─────────────────────────────────────────────────────────────────────
+\section{Determinación del alcance}
+
+En esta sección se determina el alcance del proyecto, considerando los componentes clave 
+que definen su viabilidad y su potencial como producto real.
+
+% ── 1.3.1 ────────────────────────────────────────────────────────────────────
+\subsection{Planificación}
+
+El proyecto se desarrollará a lo largo de cinco hitos iterativos que cubren el ciclo de vida 
+completo de un proyecto de Machine Learning, desde la definición del problema hasta su 
+despliegue.
+
+% ── 1.3.2 ────────────────────────────────────────────────────────────────────
+\subsection{Recursos Humanos: asignación de tareas y capacidad}
+
+El desarrollo del sistema VinOps se llevará a cabo por un equipo de cuatro integrantes 
+con roles complementarios:
+
+\begin{itemize}
+    \item \textbf{Antonio Muñoz García — Experto en dominio:} valida que los 
+    resultados del sistema sean coherentes con el conocimiento 
+    experto del sector vitivinícola.
+    
+    \item \textbf{Alejandro García Fernández — Analista de datos:} responsable de 
+    la recopilación y preparación de los datos fisicoquímicos 
+    del vino.
+    
+    \item \textbf{Pablo Parrilla Cañadas — Ingeniero de Machine Learning:} 
+    diseña, entrena y evalúa los modelos de clasificación.
+    
+    \item \textbf{Pablo Alfonso López Fernández — Ingeniero de despliegue:} garantiza 
+    que el sistema funcione de forma estable y pueda actualizarse 
+    ante nuevas cosechas.
+\end{itemize}
+
+El \textbf{cliente} es una bodega o cooperativa vitivinícola, cuyo director técnico actúa 
+como \textit{stakeholder} principal, validando los resultados y orientando la evolución 
+del sistema.
+
+
+% ── 1.3.3 ────────────────────────────────────────────────────────────────────
+\subsection{Viabilidad. Estudio del ROI}
+
+La viabilidad del proyecto se evalúa considerando tanto su impacto 
+técnico como económico. Para la estimación del ROI se parten de los 
+siguientes supuestos orientativos:
+
+\begin{itemize}
+    \item \textbf{Duración del proyecto:} 3 meses.
+    \item \textbf{Equipo técnico:} 4 personas.
+    \item \textbf{Dedicación estimada:} 10 horas semanales por persona.
+    \item \textbf{Coste estimado por hora:} 35 euros.
+\end{itemize}
+
+\textit{Los valores anteriores son orientativos y podrían variar 
+en función del contexto real del proyecto y del perfil del equipo 
+técnico contratado.}
+
+\[
+\text{Coste total} = 4 \times 10 \; \text{h/semana} \times 
+12 \; \text{semanas} \times 35 \; \text{€/hora} = 16{.}800 \; \text{€}
+\]
+
+En cuanto a los beneficios, una bodega mediana realiza aproximadamente 
+2.000 análisis de calidad por campaña a un coste estimado de 15 euros 
+por análisis. Automatizando el 70\% de ellos, el ahorro anual sería de 
+21.000 euros. Considerando además la reutilización del sistema en 
+campañas sucesivas, el ROI estimado es el siguiente:
+
+\[
+\text{ROI} = \frac{21{.}000 - 16{.}800}{16{.}800} \approx \mathbf{25\%}
+\]
+
+Este resultado indica que el proyecto es económicamente viable desde el 
+primer año, con un retorno creciente en campañas posteriores.
+
+% ── 1.3.4 ────────────────────────────────────────────────────────────────────
+\subsection{Valor}
+
+El valor aportado por el sistema VinOps se manifiesta en distintas dimensiones: 
+productiva, social, organizativa y tecnológica.
+
+\textbf{Valor productivo.} Desde el punto de vista operativo, VinOps aporta a 
+la bodega un mecanismo objetivo y sistemático de clasificación de variedades vinícolas 
+y detección de anomalías en la composición del producto. Este enfoque permite 
+complementar el criterio del enólogo con una base cuantitativa sólida y reproducible, 
+contribuyendo a identificar de forma consistente desviaciones en la calidad antes de 
+que el producto llegue al mercado y a garantizar que los criterios de evaluación se 
+mantengan estables a lo largo del tiempo, independientemente del personal disponible.
+
+\textbf{Valor social y reputacional.} La certificación objetiva y transparente de la 
+variedad y calidad del vino refuerza la credibilidad de la bodega ante consumidores, 
+distribuidores y organismos reguladores. En un mercado donde la trazabilidad y la 
+autenticidad son cada vez más valoradas, disponer de un sistema de auditoría inteligente 
+puede convertirse en un argumento diferenciador frente a la competencia y en una garantía 
+de cumplimiento normativo ante las Denominaciones de Origen.
+
+\textbf{Valor organizativo.} El sistema VinOps constituye un activo estratégico reutilizable 
+campaña tras campaña, extensible a nuevas líneas de producto y potencialmente integrable en 
+los procesos internos de la bodega. Su diseño como producto, y no como experimento puntual, 
+garantiza que la inversión realizada genere valor de forma continuada y que el sistema 
+pueda evolucionar junto con las necesidades de la organización.
+
+\textbf{Valor tecnológico.} Desde una perspectiva científico-técnica, el proyecto propone 
+una metodología reproducible para la evaluación automatizada de la calidad vinícola, validada 
+sobre datos reales de competición procedentes del repositorio UCI Machine Learning Repository 
+\cite{UCIWine}. La combinación de modelos interpretables con criterios de evaluación 
+alineados con el dominio vitivinícola sitúa a VinOps no solo como una herramienta de 
+predicción, sino como una plataforma de inteligencia aplicada al sector agroalimentario, 
+con capacidad de adaptación y mantenimiento a largo plazo.
