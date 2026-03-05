@@ -596,19 +596,30 @@ en el ejemplo HARP del profesor.
 
 \subsection{Rendimiento humano (HLP)}
 
-Un en\'ologo experto que deba clasificar el cultivar de un vino a partir de un
-informe de an\'alisis fisicoqu\'imico (13 valores num\'ericos) sin apoyo computacional
-lo har\'ia con una precisi\'on reducida, dado que
-correlacionar 13 magnitudes num\'ericas simult\'aneas de forma consistente es
-cognitivamente exigente. La literatura cient\'ifica reporta que modelos de ML bien
-entrenados alcanzan \textit{accuracy} del \textbf{98--99\%} con t\'ecnicas como LDA
+Aunque no existe literatura espec\'ifica que cuantifique el rendimiento humano
+(Human Level Performance) para este dataset, es razonable esperar que un
+en\'ologo experto clasificando manualmente a partir de 13 valores fisicoqu\'imicos
+obtenga una precisi\'on significativamente inferior (estimada entre
+75\% y 85\%). Esta estimaci\'on se basa en la complejidad cognitiva de procesar simult\'aneamente
+13 variables num\'ericas, frente a la capacidad
+de los algoritmos para capturar patrones multivariantes complejos. 
+
+La literatura cient\'ifica reporta que modelos de ML bien
+entrenados alcanzan \textit{accuracy} del 98--99\% con t\'ecnicas como LDA
 o SVM. El sistema VinOps deber\'ia superar claramente esta referencia humana.
+
+\vspace{1mm}
+
+\textit{Los valores anteriores sobre el rendimiento humano son orientativos y podrían variar 
+en función del contexto real del proyecto y del perfil del equipo 
+técnico contratado.}
 
 \subsection{Benchmarks de referencia}
 
 \begin{table}[H]
     \centering
-    \caption{Benchmarks de referencia para el dataset Wine UCI}
+        \caption{Benchmarks de referencia para el dataset Wine UCI
+             \cite{UCIWine,Aeberhard1994,James2021,Hastie2009,Breiman2001,Cortes1995,Fisher1936}}
     \begin{tabular}{lcc}
         \toprule
         \textbf{Modelo} & \textbf{Accuracy aprox.} & \textbf{Observaciones} \\
