@@ -295,7 +295,9 @@ Se puede observar que la primera dimensión está fuertemente influida por varia
 
 La segunda dimensión está principalmente determinada por la Intensidad del color, Ácido Málico y prolina, de manera que la segunda dimensión para aportar cierta relevancia química.
 
-La tercera dimensión parece tener principalmente influencia por parte de las cenizas del vino y su alcalinidad, mientras que en la cuarta solamente destacan el Ácido Málico y un poco los proantocianidinas
+La tercera dimensión parece tener principalmente influencia por parte de las cenizas del vino y su alcalinidad, mientras que en la cuarta solamente destacan el Ácido Málico y un poco los proantocianidinas.
+
+Finalmente, la quinta dimensión está principalmente influida por el Magnesio, con una carga negativa elevada, y en menor medida por los Fenoles no flavonoides, lo que indica que esta componente recoge variaciones asociadas principalmente al contenido mineral del vino.
 
 ```{r, fig.height=4}
 # Gráfico de scores para todos los individuos coloreados por Clase
@@ -307,4 +309,4 @@ fviz_pca_ind(res.pca, axes = c(3,4), geom = c("point", "text"),
 
 En el primer gráfico de scores, se puede observar como, solamente con dos dimensiones, todos los individuos por clase se pueden ver bastante bien separados. Esto es un buen indicativo de cara al modelado y la predicción de sus clases. Se puede ver como la clase 2 puede encontrarse algo solapada con las clases 1 y 2, pero como estas dos últimas sí están completamente diferenciadas entre ellas.
 
-Sin embargo, la visualización de la tercera y cuarta dimensión no aportan información, ya que se ven todos los individuos entremezclados y no es posible visualizar nada.
+Sin embargo, la visualización de la tercera y cuarta dimensión es complicado extraer conclusiones, ya que se ven todos los individuos entremezclados y no es posible visualizar nada.
