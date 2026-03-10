@@ -309,4 +309,14 @@ fviz_pca_ind(res.pca, axes = c(3,4), geom = c("point", "text"),
 
 En el primer gráfico de scores, se puede observar como, solamente con dos dimensiones, todos los individuos por clase se pueden ver bastante bien separados. Esto es un buen indicativo de cara al modelado y la predicción de sus clases. Se puede ver como la clase 2 puede encontrarse algo solapada con las clases 1 y 2, pero como estas dos últimas sí están completamente diferenciadas entre ellas.
 
-Sin embargo, la visualización de la tercera y cuarta dimensión es complicado extraer conclusiones, ya que se ven todos los individuos entremezclados y no es posible visualizar nada.
+Sin embargo, la visualización de la tercera y cuarta dimensión es complicado extraer conclusiones, ya que se ven todos los individuos entremezclados y no es posible extraer conclusiones claras..
+
+
+```{r}
+fviz_pca_biplot(X = res.pca, axes = c(1,2),geom=c("point"), repel="TRUE",habillage = "Class")
+```
+
+En el biplot se observa que la Clase 1 se concentra principalmente en la zona positiva de la primera dimensión, alineada con las direcciones de Flavonoides, Fenoles Totales, OD280/OD315 y Prolina, lo que sugiere que estos vinos presentan valores relativamente altos en dichas variables. Por el contrario, la Clase 3 se sitúa mayoritariamente en la región negativa de la primera componente y positiva de la segunda, en la dirección de Ácido Málico y Fenoles No Flavonoides, indicando una mayor presencia relativa de estas características y valores más bajos en los compuestos fenólicos asociados a la Dimensión 1, que caracterizan a la Clase 1.
+
+La Clase 2 aparece principalmente en la parte inferior del gráfico, asociada a valores negativos de la segunda componente, en oposición a variables como Intensidad del Color, Cenizas y Alcohol. Además, algunas observaciones de esta clase se ven ligeramente influenciadas por variables como Alcalinidad de las Cenizas, que aparecen próximas a su región. En conjunto, la separación entre clases se explica principalmente por el gradiente de compuestos fenólicos en la primera dimensión y por variables relacionadas con el color, las cenizas y el alcohol en la segunda.
+
