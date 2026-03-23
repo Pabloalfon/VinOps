@@ -28,6 +28,18 @@ library(patchwork)
 library(grid)
 library(gridExtra)
 library(corrplot)
+library(caret)
+library(nnet)
+library(MASS)
+library(e1071)
+library(rpart)
+library(randomForest)
+library(klaR)
+library(kknn)
+library(dplyr)
+library(caret)
+library(mltools)
+library(data.table)
 
 # Cargamos nuestros datos y revisamos sus estadísticas
 
@@ -319,4 +331,181 @@ fviz_pca_biplot(X = res.pca, axes = c(1,2),geom=c("point"), repel="TRUE",habilla
 En el biplot se observa que la Clase 1 se concentra principalmente en la zona positiva de la primera dimensión, alineada con las direcciones de Flavonoides, Fenoles Totales, OD280/OD315 y Prolina, lo que sugiere que estos vinos presentan valores relativamente altos en dichas variables. Por el contrario, la Clase 3 se sitúa mayoritariamente en la región negativa de la primera componente y positiva de la segunda, en la dirección de Ácido Málico y Fenoles No Flavonoides, indicando una mayor presencia relativa de estas características y valores más bajos en los compuestos fenólicos asociados a la Dimensión 1, que caracterizan a la Clase 1.
 
 La Clase 2 aparece principalmente en la parte inferior del gráfico, asociada a valores negativos de la segunda componente, en oposición a variables como Intensidad del Color, Cenizas y Alcohol. Además, algunas observaciones de esta clase se ven ligeramente influenciadas por variables como Alcalinidad de las Cenizas, que aparecen próximas a su región. En conjunto, la separación entre clases se explica principalmente por el gradiente de compuestos fenólicos en la primera dimensión y por variables relacionadas con el color, las cenizas y el alcohol en la segunda.
+
+
+# Preparación del dataset
+
+En cuanto a las métricas, tal como se ha comentado anteriormente, se utilizarán, de manera principal, F1-Score y Balanced Accuracy. Adicionalmente, se utilizarán el Accuracy normal, el coeficiente de Kappa y la Correlación de Matthews, siendo obtenidas a partir de una matriz de confusión.
+
+En cuanto a reproducibilidad, nos aseguramos de disponer de ella, lo primero de todo, fijando una semilla en el código para eliminar las diferencias entre ejecuciones.
+
+
+```{r}
+set.seed(2) #Reproducibilidad
+vino$Class <- factor(vino$Class)
+
+# Dataset numérico sin la clase
+vino_x <- vino[, setdiff(names(vino), "Class")]
+vino_y <- vino$Class
+
+# Partición estratificada train/test
+idx_train <- createDataPartition(vino_y, p = 0.7, list = FALSE)
+train_data <- vino[idx_train, ]
+test_data  <- vino[-idx_train, ]
+
+cat("Tamaño entrenamiento:", nrow(train_data), "\n")
+cat("Tamaño test:", nrow(test_data), "\n")
+table(train_data$Class)
+table(test_data$Class)
+
+ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final")
+```
+
+# Entrenamiento de los modelos
+
+```{r warning=FALSE}
+modelo_lda<- train(Class ~ ., data = train_data, method = "lda", trControl = ctrl, preProcess = c("center", "scale"))
+
+modelo_nb<- train(Class ~ ., data = train_data, method = "nb",trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 10)
+
+modelo_tree<- train(Class ~ ., data = train_data, method = "rpart", trControl = ctrl, tuneLength = 15)
+
+modelo_rf<- train(Class ~ ., data = train_data, method = "rf",  trControl = ctrl, tuneLength = 10)
+
+modelo_multinom <- train(Class ~ ., data = train_data, method = "multinom", trControl = ctrl, preProcess = c("center", "scale"), trace = FALSE)
+
+modelo_knn<- train(Class ~ ., data = train_data, method = "knn",trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 20)
+
+modelo_svm <- train(Class ~ ., data = train_data, method = "svmRadial", trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 10)
+
+modelos <- list(
+  "LDA" = modelo_lda, "Naive Bayes" = modelo_nb, "Árbol" = modelo_tree, "Random Forest" = modelo_rf, "Multinomial" = modelo_multinom, "kNN" = modelo_knn,  "SVM radial" = modelo_svm
+)
+
+```
+
+
+
+# Evaluación de modelos
+
+```{r}
+
+mcc_multiclase <- function(tabla) {
+  tabla <- as.matrix(tabla)
+  n <- sum(tabla)
+  c_sum <- sum(diag(tabla))
+  p_k <- rowSums(tabla)
+  t_k <- colSums(tabla)
+  sum_pt <- sum(p_k * t_k)
+  sum_p2 <- sum(p_k^2)
+  sum_t2 <- sum(t_k^2)
+  
+  numerador <- c_sum * n - sum_pt
+  denominador <- sqrt((n^2 - sum_p2) * (n^2 - sum_t2))
+  
+  if (denominador == 0) return(NA)
+  numerador / denominador
+}
+
+metricas_multiclase <- function(y_true, y_pred) {
+  y_true <- factor(y_true)
+  y_pred <- factor(y_pred, levels = levels(y_true))
+  cm <- confusionMatrix(y_pred, y_true)
+  tabla <- cm$table
+  clases <- levels(y_true)
+  
+  metricas_clase <- lapply(clases, function(clase) {
+    TP <- tabla[clase, clase]
+    FP <- sum(tabla[clase, ]) - TP
+    FN <- sum(tabla[, clase]) - TP
+    TN <- sum(tabla) - TP - FP - FN
+    precision <- ifelse(TP + FP == 0, NA, TP / (TP + FP))
+    recall <- ifelse(TP + FN == 0, NA, TP / (TP + FN))
+    specificity <- ifelse(TN + FP == 0, NA, TN / (TN + FP))
+    f1 <- ifelse(is.na(precision) || is.na(recall) || precision + recall == 0, NA, 2 * precision * recall / (precision + recall))
+    bal_acc <- mean(c(recall, specificity), na.rm = TRUE)
+    data.frame(Clase = clase, Precision = precision, Recall = recall, Specificity = specificity, F1 = f1, Balanced_Accuracy = bal_acc)
+  })
+  
+  metricas_clase <- bind_rows(metricas_clase)
+  mcc <- mcc_multiclase(tabla)
+  
+resumen <- data.frame(F1_Score = mean(metricas_clase$F1, na.rm = TRUE),
+                      Balanced_Accuracy = mean(metricas_clase$Balanced_Accuracy, na.rm = TRUE),
+                      Accuracy = as.numeric(cm$overall["Accuracy"]),
+                      Kappa = as.numeric(cm$overall["Kappa"]),
+                      MCC = as.numeric(mcc))
+  list(resumen = resumen, matriz = tabla, por_clase = metricas_clase)
+}
+
+evaluar_modelo <- function(modelo, nombre, test_data) {
+  pred <- predict(modelo, newdata = test_data)
+  mets <- metricas_multiclase(test_data$Class, pred)
+  cbind(Modelo = nombre, mets$resumen)
+}
+
+detalle_modelo <- function(modelo, test_data) {
+  pred <- predict(modelo, newdata = test_data)
+  metricas_multiclase(test_data$Class, pred)
+}
+
+tabla_modelos <- bind_rows(
+  evaluar_modelo(modelo_lda, "LDA", test_data),
+  evaluar_modelo(modelo_nb, "Naive Bayes", test_data),
+  evaluar_modelo(modelo_tree, "Árbol", test_data),
+  evaluar_modelo(modelo_rf, "Random Forest", test_data),
+  evaluar_modelo(modelo_multinom, "Multinomial", test_data),
+  evaluar_modelo(modelo_knn, "kNN", test_data),
+  evaluar_modelo(modelo_svm, "SVM radial", test_data)
+) %>% arrange(desc(F1_Score), desc(Balanced_Accuracy))
+
+kable(tabla_modelos, digits = 4, caption = "Comparativa de modelos")
+```
+
+
+```{r warning=FALSE}
+
+tabla_modelos <- bind_rows(
+  evaluar_modelo(modelo_lda, "LDA", test_data),
+  evaluar_modelo(modelo_nb, "Naive Bayes", test_data),
+  evaluar_modelo(modelo_tree, "Árbol", test_data),
+  evaluar_modelo(modelo_rf, "Random Forest", test_data),
+  evaluar_modelo(modelo_multinom, "Multinomial", test_data),
+  evaluar_modelo(modelo_knn, "kNN", test_data),
+  evaluar_modelo(modelo_svm, "SVM radial", test_data)
+) %>% arrange(desc(F1_Score), desc(Balanced_Accuracy))
+
+kable(tabla_modelos, digits = 4, caption = "Comparativa de modelos")
+
+top3_modelos <- tabla_modelos %>% slice(1:3)
+
+kable(top3_modelos, digits = 4, caption = "Tres mejores modelos")
+```
+
+
+```{r warning=FALSE}
+
+```
+
+```{r warning=FALSE}
+# Nombres de los 3 mejores
+top_names <- top3_modelos$Modelo
+
+# Modelo 1
+det1 <- detalle_modelo(modelos[[top_names[1]]], test_data)
+cat("\n\nModelo:", top_names[1], "\n")
+det1$por_clase
+
+# Modelo 2
+det2 <- detalle_modelo(modelos[[top_names[2]]], test_data)
+cat("\n\nModelo:", top_names[2], "\n")
+det2$por_clase
+
+# Modelo 3
+det3 <- detalle_modelo(modelos[[top_names[3]]], test_data)
+cat("\n\nModelo:", top_names[3], "\n")
+det3$por_clase
+```
+
+
 
