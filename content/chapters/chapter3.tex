@@ -10,39 +10,31 @@
 Tras haber comprendido la naturaleza fisicoquímica de los datos y su estructura multivariante en el Hito 2, el presente capítulo aborda la fase central del sistema VinOps: el \textbf{modelado predictivo}. El objetivo principal es diseñar, entrenar y validar un conjunto de algoritmos de \textit{Machine Learning} capaces de clasificar de forma robusta la variedad de los cultivares de vino.
 
 Para garantizar la viabilidad del sistema en un entorno de producción real, este proceso no se limita a la búsqueda de la máxima exactitud, sino que sigue una metodología científica estricta: preprocesamiento fundamentado, diseño de experimentos controlados mediante ajuste de hiperparámetros (\textit{hyperparameter tuning}), evaluación mediante métricas robustas al desbalanceo y, finalmente, un análisis de interpretabilidad para validar las reglas subyacentes del modelo.
-
-% ─────────────────────────────────────────────────────────────────────────────
-\section{Preprocesamiento y limpieza de datos}
-
-El análisis exploratorio previo demostró la calidad general del \textit{Wine Recognition Dataset}, destacando la ausencia de valores nulos. Sin embargo, mediante la distancia al modelo (Q-residuals) y el estadístico $T^{2}$ de Hotelling, se identificaron observaciones estadísticamente anómalas. 
-
-En esta fase, se ha tomado la decisión técnica de \textbf{eliminar los valores atípicos extremos} (observaciones que superaban el límite de confianza del 99\%) antes del entrenamiento. Esta purga es crítica para evitar que dichos registros distorsionen las fronteras de decisión de modelos topológicos sensibles a la distancia, como \textit{k-Nearest Neighbors} (kNN) o el Análisis Discriminante Lineal (LDA).
-
-Adicionalmente, debido a la heterogeneidad de escalas detectada entre compuestos como la Prolina (medida en altas magnitudes) y el Matiz (\textit{Hue}), se ha integrado en el flujo de trabajo un proceso automático de \textbf{centrado y escalado} (estandarización) para todas las variables predictoras.
-
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Diseño experimental y metodología de validación}
 
-Para evaluar la capacidad de generalización de los algoritmos y prevenir el sobreajuste (\textit{overfitting}), se ha implementado el siguiente diseño experimental:
+En esta fase se ha abordado el problema de clasificación multiclase sobre el \textit{Wine Recognition Dataset} mediante un diseño experimental orientado a maximizar la capacidad de generalización de los modelos. Para ello, se ha realizado una partición estratificada de los datos, destinando el 70\% de las observaciones al entrenamiento y el 30\% al test, preservando en ambos subconjuntos la proporción original de las tres clases de vino.
 
-\begin{enumerate}
-    \item \textbf{Partición de datos (Train/Test):} Se ha realizado una división estratificada destinando el 70\% de las instancias al entrenamiento y el 30\% a la prueba. La estratificación asegura que la proporción original de las tres clases de vino se mantenga constante en ambos subconjuntos.
-    \item \textbf{Validación Cruzada (Cross-Validation):} Sobre el conjunto de entrenamiento, se ha aplicado una validación cruzada de 10 iteraciones ($10$-fold CV), proporcionando una estimación insesgada del rendimiento de los modelos durante la búsqueda de hiperparámetros.
-    \item \textbf{Métricas de decisión:} De acuerdo con lo formulado en el Hito 2, la selección del modelo ganador se basará primordialmente en el \textbf{Macro F1-Score} y la \textbf{Exactitud Balanceada} (\textit{Balanced Accuracy}), garantizando que el sistema clasifique correctamente incluso la clase minoritaria (Clase 3).
-\end{enumerate}
+Sobre el conjunto de entrenamiento se ha aplicado una validación cruzada de 10 particiones (\textit{10-fold Cross-Validation}) durante el ajuste de los modelos. Esta estrategia permite evitar la necesidad de reservar un conjunto de validación independiente, algo especialmente conveniente en escenarios de \textit{small data}, donde resulta prioritario aprovechar al máximo la información disponible. En consecuencia, el conjunto de test queda completamente aislado y se utiliza exclusivamente para la evaluación final.
+
+Siguiendo los criterios definidos en el Hito 2, la comparación entre modelos se ha basado principalmente en el \textbf{Macro F1-Score} y la \textbf{Balanced Accuracy}, complementadas por \textit{Accuracy}, \textit{Kappa} y el coeficiente \textit{Matthews Correlation Coefficient} (MCC). Este conjunto de métricas permite evaluar el rendimiento de forma robusta en un contexto multiclase con ligero desbalanceo.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Selección de algoritmos y ajuste de hiperparámetros}
 
-Se han entrenado y evaluado siete familias algorítmicas, abarcando enfoques lineales, probabilísticos, basados en distancias y en árboles de decisión. Para cada uno, se ha definido un espacio de búsqueda (\textit{grid}) explícito, abandonando la selección aleatoria para asegurar el rigor científico:
+Se han entrenado y evaluado siete modelos representativos, abarcando enfoques lineales, probabilísticos, basados en distancias y en árboles de decisión.
 
 \begin{itemize}
-    \item \textbf{LDA y Regresión Logística Multinomial:} Empleados como modelos paramétricos base por su solidez estadística y alta explicabilidad.
+    \item \textbf{LDA y Regresión Logística Multinomial:} Empleados como modelos paramétricos base por su solidez estadística y buena interpretabilidad.
     \item \textbf{Naive Bayes (NB):} Se ha optimizado el uso de estimaciones de densidad no paramétricas frente a distribuciones gaussianas normales (\textit{usekernel}).
-    \item \textbf{K-Vecinos Más Cercanos (kNN):} Se exploró el número de vecinos óptimos ($k \in \{3, 5, 7, 9, 11\}$) utilizando distancias euclídeas ponderadas.
-    \item \textbf{Máquinas de Vectores de Soporte (SVM Radial):} Dada la posible no linealidad de las fronteras químicas, se optimizó tanto el coste de penalización ($C \in \{0.1, 1, 10, 100\}$) como el parámetro de suavizado del \textit{kernel} radial ($\sigma$).
+    \item \textbf{K-Vecinos Más Cercanos (kNN):} Se exploró el número de vecinos óptimos ($k \in \{2, 3, 5, 8, 10\}$) utilizando distancia euclídea.
+    \item \textbf{Máquinas de Vectores de Soporte (SVM Radial):} Dada la posible no linealidad de las fronteras químicas, se optimizó tanto el coste de penalización ($C \in \{0.1, 1, 10, 100\}$) como el parámetro del \textit{kernel} radial ($\sigma$).
     \item \textbf{Árboles (CART) y Random Forest (RF):} Modelos robustos ante la multicolinealidad detectada en el bloque fenólico. Para RF, se ajustó el número de variables seleccionadas aleatoriamente en cada división ($mtry \in \{2, 4, 6, 8, 10\}$).
 \end{itemize}
+
+El ajuste de hiperparámetros se ha realizado mediante Grid Search dentro del esquema de validación cruzada. Esta elección se justifica por el reducido tamaño del dataset y por el carácter acotado de los espacios de búsqueda definidos, lo que hace viable una exploración exhaustiva sin necesidad de recurrir a técnicas más complejas como \textit{Random Search} u optimización bayesiana. Además, la búsqueda en rejilla facilita la trazabilidad experimental y la interpretación metodológica de los resultados.
+
+Las rejillas se definieron específicamente para los modelos que requieren ajuste explícito. En Naive Bayes se exploraron configuraciones con y sin suavizado mediante \textit{kernel density estimation}; en kNN se evaluaron distintos valores de $k$ (número de vecinos considerados); en SVM radial se ajustaron los parámetros $C$ (coste de penalización) y $\sigma$ (parámetro del \textit{kernel} radial); en CART se optimizó el parámetro de complejidad $cp$ (control de poda del árbol); y en Random Forest se varió el número de variables candidatas por división ($mtry$, número de variables consideradas en cada split). Por su parte, modelos como LDA y la regresión multinomial se emplearon como referencias paramétricas de menor complejidad.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Resultados y análisis comparativo}
@@ -50,38 +42,119 @@ Se han entrenado y evaluado siete familias algorítmicas, abarcando enfoques lin
 Tras la fase de entrenamiento y ajuste, los modelos fueron evaluados sobre el conjunto de prueba aislado. A continuación, se presenta la tabla comparativa con los tres mejores algoritmos, ordenados por su rendimiento en la métrica principal.
 
 \vspace{0.5cm}
-% [INSTRUCCIÓN PARA EL EQUIPO: Reemplazar este bloque por el código LaTeX de la tabla knitr::kable que os devuelve RStudio]
-\begin{table}[h!]
+\begin{table}[h]
     \centering
-    \caption{Comparativa de los tres mejores modelos (Top 3) sobre el conjunto de prueba.}
+    \caption{Comparativa global de modelos sobre el conjunto de prueba.}
     \vspace{0.2cm}
     \begin{tabular}{l c c c c c}
         \hline
         \textbf{Modelo} & \textbf{F1-Score} & \textbf{Balanced Acc.} & \textbf{Accuracy} & \textbf{Kappa} & \textbf{MCC} \\
         \hline
-        Modelo Ganador 1 & 0.0000 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
-        Modelo Ganador 2 & 0.0000 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
-        Modelo Ganador 3 & 0.0000 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
+        Naive Bayes & 0.9804 & 0.9877 & 0.9808 & 0.9709 & 0.9714 \\
+        Random Forest & 0.9804 & 0.9877 & 0.9808 & 0.9709 & 0.9714 \\
+        LDA & 0.9623 & 0.9750 & 0.9615 & 0.9419 & 0.9435 \\
+        Multinomial & 0.9611 & 0.9754 & 0.9615 & 0.9420 & 0.9441 \\
+        Árbol & 0.9444 & 0.9573 & 0.9423 & 0.9122 & 0.9138 \\
+        SVM radial & 0.9421 & 0.9630 & 0.9423 & 0.9133 & 0.9179 \\
+        kNN & 0.9231 & 0.9503 & 0.9231 & 0.8846 & 0.8911 \\
+        Aleatorio - Baseline & 0.4290 & 0.5732 & 0.4231 & 0.1329 & 0.1335 \\
         \hline
     \end{tabular}
-    \label{tab:top3_modelos}
+    \label{tab:comparativa_modelos}
 \end{table}
 \vspace{0.5cm}
 
-Como se observa en la Tabla~\ref{tab:top3_modelos}, los resultados avalan la viabilidad técnica del sistema. Las puntuaciones casi perfectas en el F1-Score demuestran que el preprocesamiento y la correcta parametrización han permitido a los modelos capturar las sutilezas químicas que diferencian cada cultivar sin sesgarse hacia la clase mayoritaria.
+Como se observa en la Tabla~\ref{tab:comparativa_modelos}, los resultados avalan la viabilidad técnica del sistema. La comparativa de modelos muestra un rendimiento muy elevado en la mayoría de algoritmos, destacando Naive Bayes y Random Forest como los modelos con mejores resultados, alcanzando métricas prácticamente idénticas. Esto sugiere que el problema presenta una estructura bien definida en el espacio de características, donde tanto enfoques probabilísticos como modelos basados en ensamblado son capaces de capturar eficazmente las relaciones entre variables.
+
+LDA y la regresión multinomial presentan un rendimiento muy cercano, lo que refuerza la idea de que una parte importante de la separación entre clases puede modelarse de forma aproximadamente lineal. Por su parte, modelos como SVM radial y kNN no aportan mejoras significativas, lo que indica que la complejidad adicional no resulta determinante en este caso.
+
+El árbol de decisión obtiene un rendimiento inferior, coherente con su mayor varianza en datasets pequeños. Finalmente, el baseline aleatorio se sitúa claramente por debajo del resto, confirmando que los modelos entrenados están capturando una estructura real en los datos.
+
+\begin{table}[h]
+    \centering
+    \caption{Hiperparámetros óptimos seleccionados mediante Grid Search.}
+    \vspace{0.2cm}
+    \begin{tabular}{l l}
+        \hline
+        \textbf{Modelo} & \textbf{Hiperparámetros óptimos} \\
+        \hline
+        Naive Bayes & \{fL: 0, usekernel: FALSE, adjust: 1\} \\
+        Árbol & \{cp: 0.07\} \\
+        Random Forest & \{mtry: 2\} \\
+        kNN & \{kmax: 10, distance: 2, kernel: optimal\} \\
+        SVM radial & \{sigma: 0.01, C: 10\} \\
+        \hline
+    \end{tabular}
+    \label{tab:hiperparametros}
+\end{table}
+\vspace{0.5cm}
+
+En la Tabla~\ref{tab:hiperparametros} hiperparámetros seleccionados muestran configuraciones relativamente simples, lo que refuerza la idea de que el problema no requiere modelos altamente complejos para alcanzar un buen rendimiento. En particular, destaca el bajo valor de $mtry$ en Random Forest y el valor reducido de $\sigma$ en SVM, indicando fronteras de decisión relativamente suaves y bien definidas.
 
 % ─────────────────────────────────────────────────────────────────────────────
-\section{Explicabilidad y validación técnica (Feature Importance)}
+\section{Análisis de errores}
 
-Un sistema crítico de apoyo a la decisión en la industria enológica no puede comportarse como una ``caja negra''. Los expertos de dominio necesitan comprender en qué variables se basa el modelo para emitir sus clasificaciones. Para responder a esta necesidad, se ha extraído la importancia de las variables (\textit{Feature Importance}) del modelo basado en ensamblajes de árboles (Random Forest), midiendo la disminución media en la impureza del nodo (Gini) al utilizar cada variable.
+El análisis de errores revela que las observaciones mal clasificadas se concentran principalmente en la clase 2, que en varios casos es predicha como clase 3. Este patrón sugiere la existencia de una región de solapamiento entre ambas clases, donde la separación no es completamente nítida.
 
-\vspace{0.5cm}
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.75\textwidth]{Pictures/feature_importance.pdf}
-    \caption{Importancia de las variables fisicoquímicas en la toma de decisiones del modelo.}
-    \label{fig:feature_importance}
-\end{figure}
-\vspace{0.5cm}
+\vspace{0.3cm}
 
-Como anticipó el Análisis de Componentes Principales (PCA) del Hito 2, el modelo confirma empíricamente que variables como la concentración de Flavonoides, la Intensidad del Color y el nivel de Prolina son los discriminadores más potentes. Esto demuestra que la Inteligencia Artificial de VinOps ha logrado interiorizar auténtico conocimiento enológico y no meros artefactos estadísticos, garantizando la confianza y la transferibilidad del sistema a las bodegas.
+En particular, la observación 62 destaca como un caso crítico, ya que es sistemáticamente mal clasificada por todos los modelos. Este comportamiento indica que no se trata de una limitación específica de un algoritmo, sino de una ambigüedad intrínseca en los datos.
+
+\vspace{0.3cm}
+
+\begin{table}[h]
+\centering
+\caption{Observaciones mal clasificadas comunes entre modelos}
+\begin{tabular}{c c c}
+\hline
+\textbf{Obs} & \textbf{Clase Real} & \textbf{Predicción} \\
+\hline
+62 & 2 & 3 \\
+69 & 2 & 3 \\
+119 & 2 & 3 \\
+\hline
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+
+La comparación de la observación 62 con las medias de las clases 2 y 3 confirma que presenta un comportamiento mixto, con ciertas variables más próximas a la clase 3, lo que explica su confusión. En este sentido, se trata de un punto situado en la frontera de decisión, más que de un error aleatorio.
+
+\vspace{0.3cm}
+
+Por otro lado, los outliers detectados previamente mediante PCA no parecen estar directamente relacionados con los errores, ya que únicamente uno de ellos aparece en el conjunto de test y además se clasifica correctamente. No obstante, este aspecto debería analizarse con mayor profundidad en escenarios más amplios, dado que su impacto podría manifestarse en otras particiones o conjuntos de datos.
+
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Explicabilidad y validación técnica}
+El análisis de importancia de variables mediante Random Forest permite identificar qué características fisicoquímicas tienen mayor influencia en la clasificación. Como se observa, las variables más relevantes son la prolina, la intensidad del color, los flavonoides y el ratio OD280/OD315, seguidas por el alcohol y los compuestos fenólicos totales.
+
+\vspace{0.3cm}
+
+\begin{table}[h]
+\centering
+\caption{Variables más relevantes según Random Forest}
+\begin{tabular}{l c}
+\hline
+\textbf{Variable} & \textbf{Importancia} \\
+\hline
+Proline & 100.00 \\
+Color_Intensity & 95.01 \\
+OD280_OD315 & 84.07 \\
+Flavanoids & 75.11 \\
+Alcohol & 72.78 \\
+\hline
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+
+Estas variables están directamente relacionadas con la composición fenólica y las características organolépticas del vino, lo que resulta coherente con el dominio enológico. En particular, la prolina y la intensidad del color son conocidos indicadores de diferenciación entre variedades, mientras que los flavonoides y el ratio OD280/OD315 reflejan la concentración de compuestos fenólicos, altamente discriminativos.
+
+\vspace{0.3cm}
+
+En contraste, variables como el \textit{ash} o los \textit{nonflavanoid phenols} presentan una contribución prácticamente nula, lo que indica que aportan poca información relevante para la tarea de clasificación.
+
+\vspace{0.3cm}
+
+Este patrón es consistente con el análisis PCA realizado previamente, donde estas mismas variables mostraban una elevada contribución a las primeras componentes principales. Aunque PCA y Random Forest responden a criterios distintos (varianza explicada frente a capacidad predictiva), la coincidencia observada refuerza la validez del modelo y su interpretación desde el punto de vista enológico.

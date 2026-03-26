@@ -3,16 +3,14 @@ title: "VinOps: Hito 3 - Modelado, Experimentación y Validación"
 author: "Alejandro García, Pablo Alfonso López, Antonio Muñoz, Pablo Parrilla Cañadas"
 date: "2026-03-20"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
-# Para ejecutar este cuaderno, asegúrate de tener instalados los siguientes paquetes:
-# install.packages(c("dplyr", "caret", "randomForest", "kernlab", "nnet", "kknn", "ggplot2", "knitr", "e1071", "MASS", "rpart", "klaR"))
- 
+
 # Introducción al Hito 3
 
-Este cuaderno documenta la fase de modelado algorítmico del sistema **VinOps**. Tras el análisis exploratorio del Hito 2, el objetivo ahora es preprocesar los datos (tratamiento de valores atípicos), diseñar los experimentos de Machine Learning con una búsqueda rigurosa de hiperparámetros y evaluar el rendimiento de múltiples algoritmos. 
+Este cuaderno documenta la fase de modelado algorítmico del sistema **VinOps**. Tras el análisis exploratorio del Hito 2, el objetivo ahora es diseñar los experimentos de Machine Learning, ajustar rigurosamente los hiperparámetros, comparar distintos algoritmos y analizar tanto sus errores como la explicabilidad de sus decisiones.
 
 Finalmente, se incluirá un análisis de explicabilidad (Feature Importance) para validar empíricamente que los modelos basan sus decisiones en variables fisicoquímicas coherentes con el dominio enológico.
 
@@ -29,91 +27,78 @@ library(knitr)
 library(e1071)
 library(MASS)
 library(rpart)
+library(tidyr)
 
 # Cargamos los datos limpios del hito anterior
-vino <- read.csv("wine_clean.csv")
-vino$Class <- factor(vino$Class)
+vino=read.csv("wine_clean.csv")
+vino$Class=factor(vino$Class)
 ```
 
-# 1. Preprocesamiento: Tratamiento de Outliers
+# 1. Diseño Experimental y Partición de Datos
 
-En el Hito 2 se detectaron observaciones anómalas mediante la T^2 de Hotelling y Q-residuals. Procedemos a eliminar los atípicos extremos para evitar que distorsionen las fronteras de decisión de nuestros modelos.
-
-```{r outliers}
-# Índices de outliers extremos detectados en la fase EDA (Hito 2)
-outliers_extremos <- c(70, 96, 97, 111, 122, 125, 159, 160)
-
-# Filtramos el dataset
-vino_prep <- vino[-outliers_extremos, ]
-print(paste("Tamaño del dataset original:", nrow(vino)))
-print(paste("Tamaño tras eliminar outliers:", nrow(vino_prep)))
-```
-
-# 2. Diseño Experimental y Partición de Datos
-
-Para garantizar la reproducibilidad y evitar el sobreajuste (overfitting), dividimos los datos de forma estratificada y configuramos una Validación Cruzada de 10 iteraciones (10-fold CV). Además, centraremos y escalaremos los datos numéricos dentro del propio pipeline de entrenamiento.
+Para garantizar la reproducibilidad y evitar el sobreajuste (overfitting), dividimos los datos de forma estratificada y configuramos una Validación Cruzada de 10 iteraciones (10-fold CV). Esto evita la necesidad de dividir el conjunto de datos en training, validation y test, de manera que podemos tener solamente conjuntos de train y test. 
 
 ```{r particion}
-set.seed(2026) # Semilla fijada para reproducibilidad
+set.seed(2) # Semilla fijada para reproducibilidad
 
 # Dataset numérico sin la clase
-vino_x <- vino_prep[, setdiff(names(vino_prep), "Class")]
-vino_y <- vino_prep$Class
+vino_x=vino[, setdiff(names(vino), "Class")]
+vino_y=vino$Class
 
 # Partición estratificada train/test (70/30)
-idx_train <- createDataPartition(vino_y, p = 0.7, list = FALSE)
-train_data <- vino_prep[idx_train, ]
-test_data  <- vino_prep[-idx_train, ]
+idx_train=createDataPartition(vino_y, p = 0.70, list = FALSE)
+train_data=vino[idx_train, ]
+test_data =vino[-idx_train, ]
 
 cat("Tamaño entrenamiento:", nrow(train_data), "\n")
 cat("Tamaño test:", nrow(test_data), "\n")
 
 # Configuración del control de entrenamiento (10-fold CV)
-ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final")
+ctrl=trainControl(method = "cv", number = 10, savePredictions = "final")
 ```
 
-# 3. Entrenamiento y Ajuste de Hiperparámetros
+# 2. Entrenamiento y Ajuste de Hiperparámetros
 
-En lugar de delegar toda la búsqueda al azar, definimos rejillas de hiperparámetros (Grids) para los modelos más complejos, demostrando rigor científico experimental.
+En lugar de delegar toda la búsqueda al azar, definimos rejillas de hiperparámetros (Grids) para los modelos más complejos, demostrando rigor científico experimental. Además, dando que tenemos un dataset pequeño, no estimamos oportuno utilizar una optimización bayesiana de hiperparámetros. 
 
 ```{r entrenamiento, warning=FALSE, message=FALSE}
 # 3.1 Análisis Discriminante Lineal (LDA) - Baseline
-modelo_lda <- train(Class ~ ., data = train_data, method = "lda", 
+modelo_lda=train(Class ~ ., data = train_data, method = "lda", 
                     trControl = ctrl, preProcess = c("center", "scale"))
 
 # 3.2 Naive Bayes
-modelo_nb <- train(Class ~ ., data = train_data, method = "nb",
+modelo_nb=train(Class ~ ., data = train_data, method = "nb",
                    trControl = ctrl, preProcess = c("center", "scale"), 
                    tuneGrid = expand.grid(fL = c(0, 1), usekernel = c(TRUE, FALSE), adjust = 1))
 
 # 3.3 Random Forest (RF) - Búsqueda en mtry
-grid_rf <- expand.grid(mtry = c(2, 4, 6, 8, 10))
-modelo_rf <- train(Class ~ ., data = train_data, method = "rf",  
+grid_rf=expand.grid(mtry = c(2, 4, 6, 8, 10))
+modelo_rf=train(Class ~ ., data = train_data, method = "rf",  
                    trControl = ctrl, tuneGrid = grid_rf)
 
 # 3.4 K-Vecinos Más Cercanos (kNN) - Búsqueda en k
-grid_knn <- expand.grid(kmax = c(3, 5, 7, 9, 11), distance = 2, kernel = "optimal")
-modelo_knn <- train(Class ~ ., data = train_data, method = "kknn",
+grid_knn=expand.grid(kmax = c(2,3, 5, 8, 10), distance = 2, kernel = "optimal")
+modelo_knn=train(Class ~ ., data = train_data, method = "kknn",
                     trControl = ctrl, preProcess = c("center", "scale"), 
                     tuneGrid = grid_knn)
 
 # 3.5 SVM Radial - Búsqueda de Coste (C) y Sigma
-grid_svm <- expand.grid(sigma = c(0.01, 0.05, 0.1), C = c(0.1, 1, 10, 100))
-modelo_svm <- train(Class ~ ., data = train_data, method = "svmRadial", 
+grid_svm=expand.grid(sigma = c(0.01, 0.05, 0.1), C = c(0.1, 1, 10, 100))
+modelo_svm=train(Class ~ ., data = train_data, method = "svmRadial", 
                     trControl = ctrl, preProcess = c("center", "scale"), 
                     tuneGrid = grid_svm)
 
 # 3.6 Regresión Logística Multinomial
-modelo_multinom <- train(Class ~ ., data = train_data, method = "multinom", 
+modelo_multinom=train(Class ~ ., data = train_data, method = "multinom", 
                          trControl = ctrl, preProcess = c("center", "scale"), trace = FALSE)
 
 # 3.7 Árbol de Decisión (CART)
-grid_rpart <- expand.grid(cp = seq(0.01, 0.1, by = 0.01))
-modelo_tree <- train(Class ~ ., data = train_data, method = "rpart", 
+grid_rpart=expand.grid(cp = seq(0.01, 0.1, by = 0.01))
+modelo_tree=train(Class ~ ., data = train_data, method = "rpart", 
                      trControl = ctrl, tuneGrid = grid_rpart)
 
 # Lista maestra de modelos
-modelos <- list(
+modelos=list(
   "LDA" = modelo_lda, 
   "Naive Bayes" = modelo_nb,
   "Árbol" = modelo_tree,
@@ -124,51 +109,51 @@ modelos <- list(
 )
 ```
 
-# 4. Evaluación de Modelos
+# 3. Evaluación de Modelos e hiperparámetros
 
 Utilizamos las funciones personalizadas para obtener métricas robustas frente al leve desbalanceo de clases (Macro F1-Score y Balanced Accuracy).
 
 ```{r metricas, echo=FALSE}
-# Funciones personalizadas
-mcc_multiclase <- function(tabla) {
-  tabla <- as.matrix(tabla)
-  n <- sum(tabla)
-  c_sum <- sum(diag(tabla))
-  p_k <- rowSums(tabla)
-  t_k <- colSums(tabla)
-  sum_pt <- sum(p_k * t_k)
-  sum_p2 <- sum(p_k^2)
-  sum_t2 <- sum(t_k^2)
-  numerador <- c_sum * n - sum_pt
-  denominador <- sqrt((n^2 - sum_p2) * (n^2 - sum_t2))
+# Funciones personalizadas. Encontramos problemas con las librerías, y al final hacemos los cálculos a mano.
+mcc_multiclase=function(tabla) {
+  tabla=as.matrix(tabla)
+  n=sum(tabla)
+  c_sum=sum(diag(tabla))
+  p_k=rowSums(tabla)
+  t_k=colSums(tabla)
+  sum_pt=sum(p_k * t_k)
+  sum_p2=sum(p_k^2)
+  sum_t2=sum(t_k^2)
+  numerador=c_sum * n - sum_pt
+  denominador=sqrt((n^2 - sum_p2) * (n^2 - sum_t2))
   if (denominador == 0) return(NA)
   numerador / denominador
 }
 
-metricas_multiclase <- function(y_true, y_pred) {
-  y_true <- factor(y_true)
-  y_pred <- factor(y_pred, levels = levels(y_true))
-  cm <- confusionMatrix(y_pred, y_true)
-  tabla <- cm$table
-  clases <- levels(y_true)
+metricas_multiclase=function(y_true, y_pred) {
+  y_true=factor(y_true)
+  y_pred=factor(y_pred, levels = levels(y_true))
+  cm=confusionMatrix(y_pred, y_true)
+  tabla=cm$table
+  clases=levels(y_true)
   
-  metricas_clase <- lapply(clases, function(clase) {
-    TP <- tabla[clase, clase]
-    FP <- sum(tabla[clase, ]) - TP
-    FN <- sum(tabla[, clase]) - TP
-    TN <- sum(tabla) - TP - FP - FN
-    precision <- ifelse(TP + FP == 0, NA, TP / (TP + FP))
-    recall <- ifelse(TP + FN == 0, NA, TP / (TP + FN))
-    specificity <- ifelse(TN + FP == 0, NA, TN / (TN + FP))
-    f1 <- ifelse(is.na(precision) || is.na(recall) || precision + recall == 0, NA, 2 * precision * recall / (precision + recall))
-    bal_acc <- mean(c(recall, specificity), na.rm = TRUE)
+  metricas_clase=lapply(clases, function(clase) {
+    TP=tabla[clase, clase]
+    FP=sum(tabla[clase, ]) - TP
+    FN=sum(tabla[, clase]) - TP
+    TN=sum(tabla) - TP - FP - FN
+    precision=ifelse(TP + FP == 0, NA, TP / (TP + FP))
+    recall=ifelse(TP + FN == 0, NA, TP / (TP + FN))
+    specificity=ifelse(TN + FP == 0, NA, TN / (TN + FP))
+    f1=ifelse(is.na(precision) || is.na(recall) || precision + recall == 0, NA, 2 * precision * recall / (precision + recall))
+    bal_acc=mean(c(recall, specificity), na.rm = TRUE)
     data.frame(Clase = clase, Precision = precision, Recall = recall, Specificity = specificity, F1 = f1, Balanced_Accuracy = bal_acc)
   })
   
-  metricas_clase <- bind_rows(metricas_clase)
-  mcc <- mcc_multiclase(tabla)
+  metricas_clase=bind_rows(metricas_clase)
+  mcc=mcc_multiclase(tabla)
   
-  resumen <- data.frame(F1_Score = mean(metricas_clase$F1, na.rm = TRUE),
+  resumen=data.frame(F1_Score = mean(metricas_clase$F1, na.rm = TRUE),
                         Balanced_Accuracy = mean(metricas_clase$Balanced_Accuracy, na.rm = TRUE),
                         Accuracy = as.numeric(cm$overall["Accuracy"]),
                         Kappa = as.numeric(cm$overall["Kappa"]),
@@ -176,16 +161,28 @@ metricas_multiclase <- function(y_true, y_pred) {
   list(resumen = resumen, matriz = tabla, por_clase = metricas_clase)
 }
 
-evaluar_modelo <- function(modelo, nombre, test_data) {
-  pred <- predict(modelo, newdata = test_data)
-  mets <- metricas_multiclase(test_data$Class, pred)
+evaluar_modelo=function(modelo, nombre, test_data) {
+  pred=predict(modelo, newdata = test_data)
+  mets=metricas_multiclase(test_data$Class, pred)
+  cbind(Modelo = nombre, mets$resumen)
+}
+
+# La función qué permite crear el clasificador al azar
+baseline_azar=function(nombre, test_data) {
+  clases=levels(test_data$Class)
+  pred=factor(
+    sample(clases, size = nrow(test_data), replace = TRUE),
+    levels = clases
+  )
+  mets=metricas_multiclase(test_data$Class, pred)
   cbind(Modelo = nombre, mets$resumen)
 }
 ```
 
-```{r comparativa, warning=FALSE}
+```{r comparativa modelos, warning=FALSE}
 # Generamos la tabla comparativa
-tabla_modelos <- bind_rows(
+tabla_modelos=bind_rows(
+  baseline_azar("Aleatorio - Baseline", test_data),
   evaluar_modelo(modelo_lda, "LDA", test_data),
   evaluar_modelo(modelo_nb, "Naive Bayes", test_data),
   evaluar_modelo(modelo_tree, "Árbol", test_data),
@@ -196,21 +193,118 @@ tabla_modelos <- bind_rows(
 ) %>% arrange(desc(F1_Score), desc(Balanced_Accuracy))
 
 kable(tabla_modelos, digits = 4, caption = "Comparativa Global de Modelos")
-
-# Extraemos el Top 3
-top3_modelos <- tabla_modelos %>% slice(1:3)
-kable(top3_modelos, digits = 4, caption = "Tres mejores modelos")
 ```
 
-# 5. Explicabilidad del Sistema (Feature Importance)
+La comparativa de modelos muestra un rendimiento muy elevado en la mayoría de algoritmos, destacando LDA, Naive Bayes y Random Forest, que alcanzan métricas  idénticas. Este comportamiento sugiere que el problema presenta una estructura altamente separable, donde incluso modelos relativamente simples son capaces de capturar eficazmente la frontera de decisión.
 
-Para que el modelo no sea una simple "caja negra" y pueda ser validado por el experto en dominio de la bodega, extraemos la importancia de las variables (Feature Importance). Utilizamos Random Forest por su interpretabilidad intrínseca basada en la reducción de impureza.
+Los modelos intermedios (regresión multinomial, kNN y SVM radial) presentan una ligera caída en rendimiento, lo que indica que no aportan ventajas significativas en este contexto, posiblemente debido al reducido tamaño del dataset y a la limitada necesidad de modelar relaciones no lineales complejas.
+
+Por su parte, el árbol de decisión muestra un rendimiento claramente inferior, consistente con su mayor varianza y menor capacidad de generalización en problemas con pocos datos. Finalmente, el baseline aleatorio obtiene resultados cercanos al azar.
+
+
+```{r  hiperparámetros}
+hiperparametros=bind_rows(
+  cbind(Modelo="Naive Bayes", modelo_nb$bestTune),
+  cbind(Modelo="Árbol", modelo_tree$bestTune),
+  cbind(Modelo="Random Forest", modelo_rf$bestTune),
+  cbind(Modelo="kNN", modelo_knn$bestTune),
+  cbind(Modelo="SVM radial", modelo_svm$bestTune)
+)
+
+kable(hiperparametros, caption="Mejores hiperparámetros seleccionados")
+```
+
+La tabla siguiente resume las configuraciones óptimas seleccionadas mediante Grid Search para los modelos con ajuste explícito de hiperparámetros.
+
+# 4. Análisis de errores
+
+```{r warning=FALSE}
+errores_modelo=function(modelo, nombre, test_data) {
+  errores=test_data %>%
+    mutate(
+      Index = row.names(test_data),
+      Prediccion = predict(modelo, newdata = test_data),
+      Correcto = Class == Prediccion
+    ) %>%
+    filter(!Correcto) %>%
+    mutate(Modelo = nombre)
+  
+  if(nrow(errores) == 0) {
+    cat("Modelo:", nombre, "-> Sin errores\n\n")
+  } else {
+    cat("Modelo:", nombre, "\nNúmero de errores:", nrow(errores), "\n")
+    apply(errores, 1, function(fila)
+      cat("Obs:", fila["Index"], "| Real:", fila["Class"], "| Pred:", fila["Prediccion"], "\n"))
+    cat("\n")
+  }
+  
+  return(errores)
+}
+
+errores_todos = lapply(names(modelos), function(nombre) {
+  errores_modelo(modelos[[nombre]], nombre, test_data)
+})
+
+names(errores_todos) = names(modelos)
+
+```
+El análisis de errores muestra que los modelos con mejor rendimiento (LDA, Naive Bayes y Random Forest) únicamente fallan en la observación 62, que es sistemáticamente clasificada como clase 3 en lugar de clase 2, lo que indica un caso especialmente ambiguo cercano a la frontera de decisión. Los modelos intermedios (Multinomial, kNN y SVM radial) comparten este error y añaden algunos fallos adicionales en observaciones de la clase 2 clasificadas como clase 3, lo que sugiere una región de solapamiento entre ambas clases. Por su parte, el árbol de decisión presenta un mayor número de errores y un patrón más disperso, consistente con su mayor varianza. 
+
+```{r intersección outliers previos}
+outliers_extremos=c(70, 96, 97, 111, 122, 125, 159, 160)
+
+outliers_test = intersect(outliers_extremos, as.numeric(row.names(test_data)))
+```
+
+De entre los outliers que se detectaron en el PCA, se puede ver que en el conjunto de test seleccionado (eso significa que los demás fueron utilizados en el entrenamiento y en la validación cruzada) solamente se dispone de un outlier. Este se encuentra bien clasificado. 
+
+
+```{r comparacion clases-muestra 62}
+medias_clase = vino %>%
+  dplyr::group_by(Class) %>%
+  dplyr::summarise(dplyr::across(where(is.numeric), mean), .groups = "drop")
+
+medias_23 = medias_clase %>%
+  dplyr::filter(Class %in% c(2, 3))
+
+obs_62 = vino[62, ] %>%
+  dplyr::select(-Class)
+
+obs_62$Tipo = "Obs 62"
+medias_23$Tipo = paste0("Media Clase ", medias_23$Class)
+
+medias_23 = medias_23 %>%
+  dplyr::select(-Class)
+
+comparacion = dplyr::bind_rows(obs_62, medias_23)
+
+comparacion = comparacion %>%
+  dplyr::select(Tipo, dplyr::everything())
+
+comparacion
+```
+
+La comparación de la observación 62 con las medias de las clases 2 y 3 muestra que, aunque en varias variables se ajusta a su clase real (clase 2), presenta algunos valores más próximos a la clase 3, como el magnesio, los nonflavanoid phenols, la intensidad del color y el ratio OD280/OD315. Este comportamiento mixto sugiere que se trata de una observación situada en una región de solapamiento entre ambas clases, lo que explica su clasificación errónea.
+
+
+# 5. Explicabilidad del Sistema
+
+Para evitar que el modelo actúe como una "caja negra" y permitir su validación por parte del experto enológico, se analiza la importancia de las variables mediante Random Forest, aprovechando su interpretabilidad basada en la reducción de impureza. Aunque varios modelos presentan un rendimiento prácticamente idéntico, la selección recae en Random Forest como modelo final por su mayor robustez frente a observaciones atípicas y su capacidad para capturar relaciones no lineales sin necesidad de un ajuste complejo. Esta robustez resulta especialmente relevante dado que, aunque los outliers no afectan directamente al conjunto de test en este caso, sí se han identificado en la fase exploratoria y podrían influir en escenarios más generales.
 
 ```{r explicabilidad, fig.height=5, fig.width=7}
 # Importancia de variables
-importancia_rf <- varImp(modelo_rf, scale = TRUE)
+importancia_rf=varImp(modelo_rf, scale = TRUE)
 
 # Visualización
 plot(importancia_rf, main = "Importancia de Variables Fisicoquímicas", 
      col = "#973f5f", top = 10)
 ```
+
+Las variables más importantes según Random Forest (intensidad del color, prolina, alcohol, flavonoides y OD280/OD315) coinciden con aquellas que presentan mayor contribución en el PCA, especialmente en las primeras componentes principales. Esta concordancia refuerza la consistencia del modelo y su interpretación desde el punto de vista enológico.
+
+
+```{r}
+kable(importancia_rf$importance)
+```
+
+  
