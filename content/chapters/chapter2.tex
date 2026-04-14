@@ -425,12 +425,63 @@ Estas relaciones indican la presencia de estructura lineal interna en
 el dataset y podrían justificar la exploración de técnicas de reducción
 dimensional en la siguiente sección.
 
+\subsection{An\'alisis orientado a la detecci\'on de anomal\'ias}
+
+    Adem\'as de la clasificaci\'on supervisada de cultivares, el sistema VinOps
+    tiene como segundo objetivo detectar muestras an\'omalas en nuevos lotes de
+    producci\'on: vinos cuya composici\'on fisicoqu\'imica se aleja
+    de los patrones conocidos, lo que podr\'ia indicar errores de medici\'on, 
+    contaminaci\'on, fraude de etiquetado o variaciones extremas de cosecha.
+
+    Para abordar este componente del problema, el an\'alisis de los datos se ha
+    complementado con el estudio de los siguientes factores:
+
+    \begin{description}
+        \item[Distribuci\'on estad\'istica de cada variable por clase.]
+        Las Tablas~\ref{tab:estadisticos} y~\ref{tab:medias_clase_diff} permiten
+        caracterizar el rango normal de operaci\'on de cada variable para cada
+        cultivar. Una muestra nueva cuyas variables se sit\'uen fuera del
+        intervalo $[\bar{x}_k - 3\sigma_k,\; \bar{x}_k + 3\sigma_k]$ para la
+        clase predicha ser\'a marcada como potencialmente an\'omala. Aplicando 
+        este criterio sobre el dataset, se detectan pocas observaciones
+        fuera de los umbrales, en su mayor\'ia por valores altos. Variables como
+        \textit{Magnesium}, \textit{Total Phenols} y \textit{Proanthocyanins}
+        son las que m\'as veces aparecen fuera de rango, y hay casos donde una
+        misma muestra falla en varias variables a la vez (por ejemplo, la
+        observaci\'on 122), lo que indica que es claramente at\'ipica. 
+        Las observaciones detectadas son recogidas para la posterior examinación
+        por parte del enólogo. 
+
+        \item[Outliers detectados en el modelo PCA.]
+        Las observaciones identificadas en las Tablas~\ref{tab:outliers}
+        y~\ref{tab:outliers_spe} mediante $T^2$ de Hotelling y Q-residuals
+        constituyen la referencia emp\'irica del comportamiento an\'omalo en el
+        espacio multidimensional. El sistema de detecci\'on de anomal\'ias se
+        calibrar\'a usando estos mismos umbrales estad\'isticos ($F_{95}$,
+        $F_{99}$), de forma que una muestra nueva que supere el umbral $F_{99}$
+        en el espacio PCA sea macrada autom\'aticamente para revisi\'on por el
+        en\'ologo.
+
+        \item[Variables m\'as sensibles a la detecci\'on de anomal\'ias.]
+        Del an\'alisis de loadings PCA (Tabla~\ref{tab:pca_loadings}) se desprende
+        que las variables con mayor carga en las primeras componentes
+        (Flavanoids, TotalPhenols, OD280/OD315 en PC1; ColorIntensity y Proline
+        en PC2) son las m\'as informativas tanto para la clasificaci\'on como para
+        la detecci\'on de desviaciones. Sin embargo, para la detecci\'on de
+        anomal\'ias cobran especial relevancia las variables con menor variabilidad
+        intraclase, como Ash, AlcalinityAsh y Hue, ya que cualquier desviaci\'on
+        significativa en estas variables es m\'as indicativa de un problema real
+        que de variabilidad natural entre muestras del mismo cultivar.
+
+    \end{description}
+
+
 \subsection{An\'alisis de Componentes Principales (PCA)}
 
 Se ha aplicado PCA sobre el dataset (con variables estandarizadas) para obtener una
 representaci\'on de baja dimensionalidad que permita visualizar estructura y posibles agrupamientos por clase.
 
-\begin{table}[H]
+\begin{table}[h]
     \centering
     \caption{Varianza explicada por las primeras componentes principales}
     \begin{tabular}{ccc}
@@ -519,49 +570,12 @@ Se han aplicado dos t\'ecnicas complementarias:
 \noindent Estas observaciones ser\'an revisadas junto con el experto en dominio para
 determinar si corresponden a errores de medici\'on en laboratorio o a vinos
 genuinamente at\'ipicos. La decisi\'on de eliminarlos o mantenerlos se tomar\'a en
-el hito de preprocesado.
+el hito de preprocesado. También se observa que algunas observaciones detectadas como at\'ipicas mediante
+PCA tambi\'en aparecen al aplicar el criterio de $\pm 3\sigma$, como es el
+caso de las observaciones 26, 70, 96, 111, 122 y 124, lo que refuerza su
+car\'acter an\'omalo al aparecer en ambos an\'alisis y la necesidad de que el experto 
+enólogo las revise. 
 
-\subsection{An\'alisis orientado a la detecci\'on de anomal\'ias}
-
-    Adem\'as de la clasificaci\'on supervisada de cultivares, el sistema VinOps
-    tiene como segundo objetivo detectar muestras an\'omalas en nuevos lotes de
-    producci\'on: vinos cuya composici\'on fisicoqu\'imica se aleja
-    de los patrones conocidos, lo que podr\'ia indicar errores de medici\'on, 
-    contaminaci\'on, fraude de etiquetado o variaciones extremas de cosecha.
-
-    Para abordar este componente del problema, el an\'alisis de los datos se ha
-    complementado con el estudio de los siguientes factores:
-
-    \begin{description}
-        \item[Distribuci\'on estad\'istica de cada variable por clase.]
-        Las Tablas~\ref{tab:estadisticos} y~\ref{tab:medias_clase} permiten
-        caracterizar el rango normal de operaci\'on de cada variable para cada
-        cultivar. Una muestra nueva cuyas variables se sit\'uen fuera del
-        intervalo $[\bar{x}_k - 3\sigma_k,\; \bar{x}_k + 3\sigma_k]$ para la
-        clase predicha ser\'a marcada como potencialmente an\'omala.
-
-        \item[Outliers detectados en el modelo PCA.]
-        Las observaciones identificadas en las Tablas~\ref{tab:hotelling}
-        y~\ref{tab:qresiduals} mediante $T^2$ de Hotelling y Q-residuals
-        constituyen la referencia emp\'irica del comportamiento an\'omalo en el
-        espacio multidimensional. El sistema de detecci\'on de anomal\'ias se
-        calibrar\'a usando estos mismos umbrales estad\'isticos ($F_{95}$,
-        $F_{99}$), de forma que una muestra nueva que supere el umbral $F_{99}$
-        en el espacio PCA sea flaggeada autom\'aticamente para revisi\'on por el
-        en\'ologo.
-
-        \item[Variables m\'as sensibles a la detecci\'on de anomal\'ias.]
-        Del an\'alisis de loadings PCA (Tabla~\ref{tab:loadings}) se desprende
-        que las variables con mayor carga en las primeras componentes
-        (Flavanoids, TotalPhenols, OD280/OD315 en PC1; ColorIntensity y Proline
-        en PC2) son las m\'as informativas tanto para la clasificaci\'on como para
-        la detecci\'on de desviaciones. Sin embargo, para la detecci\'on de
-        anomal\'ias cobran especial relevancia las variables con menor variabilidad
-        intraclase, como Ash, AlcalinityAsh y Hue, ya que cualquier desviaci\'on
-        significativa en estas variables es m\'as indicativa de un problema real
-        que de variabilidad natural entre muestras del mismo cultivar.
-
-    \end{description}
 
 \subsection{Exploración de los datos usando PCA}
 

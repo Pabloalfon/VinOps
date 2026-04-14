@@ -137,7 +137,7 @@ Observamos algunos atípicos mediante los gráficos de caja y bigote, como en Á
 
 ```{r fig.height=5.5}
 # --- Matriz de correlaciones (Pearson) ---
-cor_mat <- cor(vino[sapply(vino, is.numeric)], use = "complete.obs", method = "pearson")
+cor_mat=cor(vino[sapply(vino, is.numeric)], use = "complete.obs", method = "pearson")
 corrplot(cor_mat, method = "color", type = "upper",addCoef.col = "black", 
          number.cex = 0.6,tl.cex = 0.65, tl.col = "black", diag = FALSE)
 ```
@@ -147,6 +147,89 @@ Se observa un bloque claramente correlacionado formado por TotalPhenols, Flavano
 Asimismo, Proanthocyanins y Color_Intensity muestran asociaciones relevantes con este grupo, lo que refuerza la idea de que existe un conjunto de variables relacionadas entre sí que describen propiedades químicas conectadas.
 
 Estas relaciones indican la presencia de estructura lineal interna en el dataset y podrían justificar la exploración de técnicas de reducción dimensional en la siguiente sección.
+
+
+
+# Detección de anomalías por distribución estadísica por clase
+
+El estudio contempla la detección de anomalías utilizando la disitribución estadística por clase. Se utilizará la regla de +- 3 desviaciones típicas, donde todas las observaciones que tengan un valor en una variable por encima o por debajo de ese umbral, será guardada.
+
+
+```{r}
+vino$Class=factor(vino$Class)
+
+vars_num=setdiff(names(vino)[sapply(vino, is.numeric)], "Class")
+
+# Estadísticos por clase y variable
+estadisticas_clase=vino %>%
+  group_by(Class) %>%
+  summarise(across(all_of(vars_num),
+                   list(media = mean, sd = sd),
+                   .names = "{col}_{fn}"),
+            .groups = "drop")
+
+# Lista donde guardaremos las anomalías detectadas
+anomalias_univariantes=list()
+
+# Recorremos cada observación
+for (i in 1:nrow(vino)) {
+  
+  clase_i=vino$Class[i]
+  fila_i=vino[i, ]
+  
+  # Extraemos la fila de estadísticas correspondiente a su clase
+  est_clase=estadisticas_clase %>% filter(Class == clase_i)
+  
+  # Recorremos cada variable numérica
+  for (var in vars_num) {
+    
+    valor=fila_i[[var]]
+    media=est_clase[[paste0(var, "_media")]]
+    sd=est_clase[[paste0(var, "_sd")]]
+    
+    lim_inf=media - 3 * sd
+    lim_sup=media + 3 * sd
+    
+    # Si se sale del intervalo, la guardamos
+    if (valor < lim_inf || valor > lim_sup) {
+      
+      anomalias_univariantes[[length(anomalias_univariantes) + 1]]=data.frame(
+        Observacion = i,
+        Class = as.character(clase_i),
+        Variable = var,
+        Valor = valor,
+        Media_clase = media,
+        SD_clase = sd,
+        Limite_inferior = lim_inf,
+        Limite_superior = lim_sup,
+        Tipo_desviacion = ifelse(valor < lim_inf, "Por debajo", "Por encima")
+      )
+    }
+  }
+}
+
+# Convertimos la lista en data frame
+anomalias_univariantes_df=bind_rows(anomalias_univariantes)
+
+# Mostramos resultados
+kable(anomalias_univariantes_df)
+```
+
+Tras aplicar la regla de +- 3 desviaciones típicas, hay observaciones que destacan: 26, 159 y especialment la 122. Este enfoque facilita identificar qué características son responsables de una anomalía Se observa que variables como Magnesium o Total_Phenols concentran varias desviaciones, así como algunas observaciones con múltiples anomalías simultáneas. En general, el número de anomalías es reducido, indicando que la mayoría de las muestras siguen patrones normales.
+
+
+```{r}
+# Índices únicos de observaciones con alguna anomalía univariante
+obs_anomalas_univariantes=unique(anomalias_univariantes_df$Observacion)
+
+# Dataset con las filas originales
+vino_anomalias_univariantes=vino[obs_anomalas_univariantes, ]
+
+vino_anomalias_univariantes
+```
+
+Guardamos las observaciones completas para posterior examinación por el enólogo. 
+
 
 # Análisis de Componentes Principales (PCA) para análisis exploratorio
 
@@ -192,7 +275,7 @@ anomalas_99= which(miT2 > F99)
 anomalas_99
 ```
 
-En el gráifco podemos observar que, usando la T\^2 de Hottelling, vemos que existen varios individuos atípicos, concretamente 11, de las cuales, 5 son atípicos extremos.
+En el gráifco podemos observar que, usando la T\^2 de Hottelling, vemos que existen varios individuos atípicos, concretamente 11, de las cuales, 5 son atípicos extremos. Llama la atención la 26 y la 122, pues ya llamaron la atención en la detección de anomalías. 
 
 ```{r fig.width=10, fig.height=5}
 # Score plots
@@ -252,7 +335,7 @@ p2 = fviz_pca_ind(res.pca, axes = c(3,4), geom = c("point"), habillage = factor(
 grid.arrange(p1,p2, nrow = 1)
 ```
 
-De manera similar a la T^2 de Hottelling, se puede observar como en primera y segunda dimensión se encuentran algo más centrados con dos valores más alejados en segunda dimensión. . Sin embargo, en tercera y cuarta dimensión hay puntos algo más centrados con 2 más alejados cada uno en una dimensjión, de manera similar a las dos primeras componentes. 
+De manera similar a la T^2 de Hottelling, se puede observar como en primera y segunda dimensión se encuentran algo más centrados con dos valores más alejados en segunda dimensión. Sin embargo, en tercera y cuarta dimensión hay puntos algo más centrados con 2 más alejados cada uno en una dimensjión, de manera similar a las dos primeras componentes. 
 
 Ahora con los extremos, vamos a intersectarlos para ver si son los mismos en ambos métodos.
 
@@ -289,6 +372,7 @@ cat("Coinciden extremos  (T² y SCR):", length(out_coinciden_extremos), "\n")
 cat("T² moderado & SCR extremo:", length(out_T2_mod_SCR_ext), "\n")
 cat("T² extremo  & SCR moderado:", length(out_T2_ext_SCR_mod), "\n")
 ```
+
 
 ## Exploración de los datos usando PCA
 
@@ -331,181 +415,5 @@ fviz_pca_biplot(X = res.pca, axes = c(1,2),geom=c("point"), repel="TRUE",habilla
 En el biplot se observa que la Clase 1 se concentra principalmente en la zona positiva de la primera dimensión, alineada con las direcciones de Flavonoides, Fenoles Totales, OD280/OD315 y Prolina, lo que sugiere que estos vinos presentan valores relativamente altos en dichas variables. Por el contrario, la Clase 3 se sitúa mayoritariamente en la región negativa de la primera componente y positiva de la segunda, en la dirección de Ácido Málico y Fenoles No Flavonoides, indicando una mayor presencia relativa de estas características y valores más bajos en los compuestos fenólicos asociados a la Dimensión 1, que caracterizan a la Clase 1.
 
 La Clase 2 aparece principalmente en la parte inferior del gráfico, asociada a valores negativos de la segunda componente, en oposición a variables como Intensidad del Color, Cenizas y Alcohol. Además, algunas observaciones de esta clase se ven ligeramente influenciadas por variables como Alcalinidad de las Cenizas, que aparecen próximas a su región. En conjunto, la separación entre clases se explica principalmente por el gradiente de compuestos fenólicos en la primera dimensión y por variables relacionadas con el color, las cenizas y el alcohol en la segunda.
-
-
-# Preparación del dataset
-
-En cuanto a las métricas, tal como se ha comentado anteriormente, se utilizarán, de manera principal, F1-Score y Balanced Accuracy. Adicionalmente, se utilizarán el Accuracy normal, el coeficiente de Kappa y la Correlación de Matthews, siendo obtenidas a partir de una matriz de confusión.
-
-En cuanto a reproducibilidad, nos aseguramos de disponer de ella, lo primero de todo, fijando una semilla en el código para eliminar las diferencias entre ejecuciones.
-
-
-```{r}
-set.seed(2) #Reproducibilidad
-vino$Class <- factor(vino$Class)
-
-# Dataset numérico sin la clase
-vino_x <- vino[, setdiff(names(vino), "Class")]
-vino_y <- vino$Class
-
-# Partición estratificada train/test
-idx_train <- createDataPartition(vino_y, p = 0.7, list = FALSE)
-train_data <- vino[idx_train, ]
-test_data  <- vino[-idx_train, ]
-
-cat("Tamaño entrenamiento:", nrow(train_data), "\n")
-cat("Tamaño test:", nrow(test_data), "\n")
-table(train_data$Class)
-table(test_data$Class)
-
-ctrl <- trainControl(method = "cv", number = 10, savePredictions = "final")
-```
-
-# Entrenamiento de los modelos
-
-```{r warning=FALSE}
-modelo_lda<- train(Class ~ ., data = train_data, method = "lda", trControl = ctrl, preProcess = c("center", "scale"))
-
-modelo_nb<- train(Class ~ ., data = train_data, method = "nb",trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 10)
-
-modelo_tree<- train(Class ~ ., data = train_data, method = "rpart", trControl = ctrl, tuneLength = 15)
-
-modelo_rf<- train(Class ~ ., data = train_data, method = "rf",  trControl = ctrl, tuneLength = 10)
-
-modelo_multinom <- train(Class ~ ., data = train_data, method = "multinom", trControl = ctrl, preProcess = c("center", "scale"), trace = FALSE)
-
-modelo_knn<- train(Class ~ ., data = train_data, method = "knn",trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 20)
-
-modelo_svm <- train(Class ~ ., data = train_data, method = "svmRadial", trControl = ctrl, preProcess = c("center", "scale"), tuneLength = 10)
-
-modelos <- list(
-  "LDA" = modelo_lda, "Naive Bayes" = modelo_nb, "Árbol" = modelo_tree, "Random Forest" = modelo_rf, "Multinomial" = modelo_multinom, "kNN" = modelo_knn,  "SVM radial" = modelo_svm
-)
-
-```
-
-
-
-# Evaluación de modelos
-
-```{r}
-
-mcc_multiclase <- function(tabla) {
-  tabla <- as.matrix(tabla)
-  n <- sum(tabla)
-  c_sum <- sum(diag(tabla))
-  p_k <- rowSums(tabla)
-  t_k <- colSums(tabla)
-  sum_pt <- sum(p_k * t_k)
-  sum_p2 <- sum(p_k^2)
-  sum_t2 <- sum(t_k^2)
-  
-  numerador <- c_sum * n - sum_pt
-  denominador <- sqrt((n^2 - sum_p2) * (n^2 - sum_t2))
-  
-  if (denominador == 0) return(NA)
-  numerador / denominador
-}
-
-metricas_multiclase <- function(y_true, y_pred) {
-  y_true <- factor(y_true)
-  y_pred <- factor(y_pred, levels = levels(y_true))
-  cm <- confusionMatrix(y_pred, y_true)
-  tabla <- cm$table
-  clases <- levels(y_true)
-  
-  metricas_clase <- lapply(clases, function(clase) {
-    TP <- tabla[clase, clase]
-    FP <- sum(tabla[clase, ]) - TP
-    FN <- sum(tabla[, clase]) - TP
-    TN <- sum(tabla) - TP - FP - FN
-    precision <- ifelse(TP + FP == 0, NA, TP / (TP + FP))
-    recall <- ifelse(TP + FN == 0, NA, TP / (TP + FN))
-    specificity <- ifelse(TN + FP == 0, NA, TN / (TN + FP))
-    f1 <- ifelse(is.na(precision) || is.na(recall) || precision + recall == 0, NA, 2 * precision * recall / (precision + recall))
-    bal_acc <- mean(c(recall, specificity), na.rm = TRUE)
-    data.frame(Clase = clase, Precision = precision, Recall = recall, Specificity = specificity, F1 = f1, Balanced_Accuracy = bal_acc)
-  })
-  
-  metricas_clase <- bind_rows(metricas_clase)
-  mcc <- mcc_multiclase(tabla)
-  
-resumen <- data.frame(F1_Score = mean(metricas_clase$F1, na.rm = TRUE),
-                      Balanced_Accuracy = mean(metricas_clase$Balanced_Accuracy, na.rm = TRUE),
-                      Accuracy = as.numeric(cm$overall["Accuracy"]),
-                      Kappa = as.numeric(cm$overall["Kappa"]),
-                      MCC = as.numeric(mcc))
-  list(resumen = resumen, matriz = tabla, por_clase = metricas_clase)
-}
-
-evaluar_modelo <- function(modelo, nombre, test_data) {
-  pred <- predict(modelo, newdata = test_data)
-  mets <- metricas_multiclase(test_data$Class, pred)
-  cbind(Modelo = nombre, mets$resumen)
-}
-
-detalle_modelo <- function(modelo, test_data) {
-  pred <- predict(modelo, newdata = test_data)
-  metricas_multiclase(test_data$Class, pred)
-}
-
-tabla_modelos <- bind_rows(
-  evaluar_modelo(modelo_lda, "LDA", test_data),
-  evaluar_modelo(modelo_nb, "Naive Bayes", test_data),
-  evaluar_modelo(modelo_tree, "Árbol", test_data),
-  evaluar_modelo(modelo_rf, "Random Forest", test_data),
-  evaluar_modelo(modelo_multinom, "Multinomial", test_data),
-  evaluar_modelo(modelo_knn, "kNN", test_data),
-  evaluar_modelo(modelo_svm, "SVM radial", test_data)
-) %>% arrange(desc(F1_Score), desc(Balanced_Accuracy))
-
-kable(tabla_modelos, digits = 4, caption = "Comparativa de modelos")
-```
-
-
-```{r warning=FALSE}
-
-tabla_modelos <- bind_rows(
-  evaluar_modelo(modelo_lda, "LDA", test_data),
-  evaluar_modelo(modelo_nb, "Naive Bayes", test_data),
-  evaluar_modelo(modelo_tree, "Árbol", test_data),
-  evaluar_modelo(modelo_rf, "Random Forest", test_data),
-  evaluar_modelo(modelo_multinom, "Multinomial", test_data),
-  evaluar_modelo(modelo_knn, "kNN", test_data),
-  evaluar_modelo(modelo_svm, "SVM radial", test_data)
-) %>% arrange(desc(F1_Score), desc(Balanced_Accuracy))
-
-kable(tabla_modelos, digits = 4, caption = "Comparativa de modelos")
-
-top3_modelos <- tabla_modelos %>% slice(1:3)
-
-kable(top3_modelos, digits = 4, caption = "Tres mejores modelos")
-```
-
-
-```{r warning=FALSE}
-
-```
-
-```{r warning=FALSE}
-# Nombres de los 3 mejores
-top_names <- top3_modelos$Modelo
-
-# Modelo 1
-det1 <- detalle_modelo(modelos[[top_names[1]]], test_data)
-cat("\n\nModelo:", top_names[1], "\n")
-det1$por_clase
-
-# Modelo 2
-det2 <- detalle_modelo(modelos[[top_names[2]]], test_data)
-cat("\n\nModelo:", top_names[2], "\n")
-det2$por_clase
-
-# Modelo 3
-det3 <- detalle_modelo(modelos[[top_names[3]]], test_data)
-cat("\n\nModelo:", top_names[3], "\n")
-det3$por_clase
-```
-
 
 
