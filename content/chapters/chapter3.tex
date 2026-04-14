@@ -22,6 +22,49 @@ Siguiendo los criterios definidos en el Hito 2, la comparación entre modelos se
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Selección de algoritmos y ajuste de hiperparámetros}
 
+La selecci\'on de algoritmos responde a una estrategia en dos niveles. Por
+un lado, se incluyen los modelos presentes en los benchmarks de referencia
+identificados en el Hito~2 (LDA, Regresi\'on Log\'istica Multinomial, SVM
+radial, kNN y \'Arbol de Decisi\'on), cuya inclusi\'on permite contrastar
+directamente los resultados obtenidos con los reportados en la literatura.
+Por otro lado, el equipo propone \textbf{Random Forest como modelo principal
+del sistema VinOps}, por las siguientes razones t\'ecnicas:
+
+\begin{itemize}
+    \item \textbf{Robustez ante multicolinealidad:} El an\'alisis de
+    correlaciones del Hito~2 revel\'o un bloque fenólico altamente
+    correlacionado (TotalPhenols, Flavanoids, OD280/OD315, $|r| \geq 0{,}70$).
+    Random Forest es inherentemente robusto ante multicolinealidad gracias
+    a la selecci\'on aleatoria de variables en cada divisi\'on (\texttt{mtry}),
+    a diferencia de modelos lineales como la regresi\'on log\'istica que pueden
+    verse afectados por inestabilidad num\'erica.
+
+    \item \textbf{No requiere normalización:} A diferencia de SVM y kNN,
+    Random Forest no es sensible a la escala de las variables. Dado que el
+    dataset presenta escalas muy heterogéneas (Proline: 278--1680\,mg/L;
+    Hue: 0{,}48--1{,}71\,u.a.), esta propiedad reduce el riesgo de introducir
+    sesgos durante el preprocesado.
+
+    \item \textbf{Interpretabilidad mediante importancia de variables:}
+    El sistema VinOps necesita ofrecer al en\'ologo una explicaci\'on de 
+    qu\'e variables han determinado la clasificaci\'on. Random Forest 
+    proporciona de forma nativa una medida de importancia de
+    variables basada en la reducci\'on del criterio de impureza (índice de Gini),
+    directamente interpretable desde el dominio vitivin\'icola.
+
+    \item \textbf{Resistencia al sobreajuste en \textit{small data}:}
+    Al promediar sobre m\'ultiples \'arboles entrenados en subconjuntos
+    aleatorios (\textit{bagging}), Random Forest reduce la varianza del
+    estimador, mitigando el riesgo de sobreajuste que el reducido tama\~no
+    muestral hace especialmente cr\'itico \cite{Breiman2001}.
+\end{itemize}
+
+El resto de modelos se incluyen como referencias experimentales que permiten
+cuantificar la ganancia obtenida frente a alternativas m\'as simples y
+contextualizar el rendimiento de Random Forest en el espectro de la
+literatura.
+
+
 Se han entrenado y evaluado siete modelos representativos, abarcando enfoques lineales, probabilísticos, basados en distancias y en árboles de decisión.
 
 \begin{itemize}
@@ -34,8 +77,82 @@ Se han entrenado y evaluado siete modelos representativos, abarcando enfoques li
 
 El ajuste de hiperparámetros se ha realizado mediante Grid Search dentro del esquema de validación cruzada. Esta elección se justifica por el reducido tamaño del dataset y por el carácter acotado de los espacios de búsqueda definidos, lo que hace viable una exploración exhaustiva sin necesidad de recurrir a técnicas más complejas como \textit{Random Search} u optimización bayesiana. Además, la búsqueda en rejilla facilita la trazabilidad experimental y la interpretación metodológica de los resultados.
 
-Las rejillas se definieron específicamente para los modelos que requieren ajuste explícito. En Naive Bayes se exploraron configuraciones con y sin suavizado mediante \textit{kernel density estimation}; en kNN se evaluaron distintos valores de $k$ (número de vecinos considerados); en SVM radial se ajustaron los parámetros $C$ (coste de penalización) y $\sigma$ (parámetro del \textit{kernel} radial); en CART se optimizó el parámetro de complejidad $cp$ (control de poda del árbol); y en Random Forest se varió el número de variables candidatas por división ($mtry$, número de variables consideradas en cada split). Por su parte, modelos como LDA y la regresión multinomial se emplearon como referencias paramétricas de menor complejidad.
+Las rejillas de b\'usqueda se dise\~naron espec\'ificamente para cada
+modelo, seleccionando \'unicamente los hiperpar\'ametros con mayor impacto
+conocido en el rendimiento y definiendo rangos acotados y justificados.
+La Tabla~\ref{tab:grid} detalla, para cada modelo, el hiperpar\'ametro
+optimizado, la justificaci\'on de su elecci\'on y el espacio de b\'usqueda
+utilizado.
 
+\begin{table}[H]
+    \centering
+    \caption{Justificaci\'on del espacio de b\'usqueda de hiperpar\'ametros
+    por modelo}
+    \label{tab:grid}
+    \small
+        \begin{tabularx}{\textwidth}{llXl}
+        \toprule
+        \textbf{Modelo} & \textbf{Hiperpar\'ametro} & \textbf{Justificaci\'on} &
+        \textbf{Espacio de b\'usqueda} \\
+        \midrule
+        Naive Bayes
+            & \texttt{usekernel}
+            & Controla si la densidad condicional se estima con una Gaussiana
+            (FALSE) o con estimaci\'on no param\'etrica por kernel (TRUE). Se
+            explora porque las distribuciones de MalicAcid y Proline presentan
+            asimetr\'ia notable, lo que puede violar la hip\'otesis gaussiana.
+            & \{TRUE, FALSE\} \\
+        \addlinespace
+        kNN
+            & $k$ (n.\textsuperscript{o} de vecinos)
+            & Controla el equilibrio sesgo-varianza: valores peque\~nos de $k$
+            producen fronteras muy locales (alta varianza); valores grandes
+            suavizan la frontera (mayor sesgo). El rango {2--10} cubre desde
+            fronteras muy precisas hasta una media local robusta, adecuado para
+            178 muestras.
+            & $k \in \{2, 3, 5, 8, 10\}$ \\
+        \addlinespace
+        SVM radial
+            & $C$ (coste de penalizaci\'on)
+            & Regula el n\'umero de vectores de soporte: $C$ bajo tolera m\'as
+            errores de clasificaci\'on (mayor margen, mayor regularizaci\'on);
+            $C$ alto busca la separaci\'on perfecta (riesgo de sobreajuste).
+            El rango logar\'itmico cubre desde modelos muy regularizados hasta
+            modelos muy ajustados.
+            & $C \in \{0{,}1,\, 1,\, 10,\, 100\}$ \\
+            & $\sigma$ (ancho del kernel RBF)
+            & Controla el radio de influencia de cada muestra de entrenamiento.
+            Un $\sigma$ bajo produce fronteras muy locales; uno alto las suaviza.
+            Se utiliza estimaci\'on autom\'atica (sigest) como punto de partida
+            y se refina manualmente.
+            & Estimado autom\'aticamente \\
+        \addlinespace
+        \'Arbol (CART)
+            & \texttt{cp} (par\'ametro de complejidad)
+            & Controla la poda del \'arbol: un \texttt{cp} alto produce \'arboles
+            m\'as simples (menor sobreajuste); uno bajo permite \'arboles m\'as
+            profundos. El rango explorado abarca desde \'arboles muy podados
+            hasta \'arboles de profundidad media, adecuado para el tama\~no del
+            dataset.
+            & $\{0{,}01,\, 0{,}05,\, 0{,}07,\, 0{,}10\}$ \\
+        \addlinespace
+        Random Forest
+            & \texttt{mtry} (variables por divisi\'on)
+            & N\'umero de variables seleccionadas aleatoriamente en cada
+            divisi\'on del \'arbol. Valores bajos aumentan la diversidad entre
+            \'arboles (menor correlaci\'on, menor varianza del ensamblado);
+            valores altos se aproximan a un \'arbol \'unico. La regla emp\'irica
+            para clasificaci\'on es $\sqrt{p} \approx 3{,}6$ para $p=13$
+            variables, por lo que el rango $\{2, 4, 6, 8, 10\}$ cubre valores
+            por debajo y por encima de dicha referencia \cite{Breiman2001}.
+            & $\{2,\, 4,\, 6,\, 8,\, 10\}$ \\
+        \bottomrule
+        \end{tabularx}
+    \end{table}
+
+LDA y la Regresi\'on Log\'istica Multinomial no requieren ajuste expl\'icito
+de hiperpar\'ametros en su configuraci\'on est\'andar, por lo que se
+emplean directamente como referencias param\'etricas de menor complejidad.
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Resultados y análisis comparativo}
 

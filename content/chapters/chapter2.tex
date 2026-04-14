@@ -521,6 +521,48 @@ determinar si corresponden a errores de medici\'on en laboratorio o a vinos
 genuinamente at\'ipicos. La decisi\'on de eliminarlos o mantenerlos se tomar\'a en
 el hito de preprocesado.
 
+\subsection{An\'alisis orientado a la detecci\'on de anomal\'ias}
+
+    Adem\'as de la clasificaci\'on supervisada de cultivares, el sistema VinOps
+    tiene como segundo objetivo detectar muestras an\'omalas en nuevos lotes de
+    producci\'on: vinos cuya composici\'on fisicoqu\'imica se aleja
+    de los patrones conocidos, lo que podr\'ia indicar errores de medici\'on, 
+    contaminaci\'on, fraude de etiquetado o variaciones extremas de cosecha.
+
+    Para abordar este componente del problema, el an\'alisis de los datos se ha
+    complementado con el estudio de los siguientes factores:
+
+    \begin{description}
+        \item[Distribuci\'on estad\'istica de cada variable por clase.]
+        Las Tablas~\ref{tab:estadisticos} y~\ref{tab:medias_clase} permiten
+        caracterizar el rango normal de operaci\'on de cada variable para cada
+        cultivar. Una muestra nueva cuyas variables se sit\'uen fuera del
+        intervalo $[\bar{x}_k - 3\sigma_k,\; \bar{x}_k + 3\sigma_k]$ para la
+        clase predicha ser\'a marcada como potencialmente an\'omala.
+
+        \item[Outliers detectados en el modelo PCA.]
+        Las observaciones identificadas en las Tablas~\ref{tab:hotelling}
+        y~\ref{tab:qresiduals} mediante $T^2$ de Hotelling y Q-residuals
+        constituyen la referencia emp\'irica del comportamiento an\'omalo en el
+        espacio multidimensional. El sistema de detecci\'on de anomal\'ias se
+        calibrar\'a usando estos mismos umbrales estad\'isticos ($F_{95}$,
+        $F_{99}$), de forma que una muestra nueva que supere el umbral $F_{99}$
+        en el espacio PCA sea flaggeada autom\'aticamente para revisi\'on por el
+        en\'ologo.
+
+        \item[Variables m\'as sensibles a la detecci\'on de anomal\'ias.]
+        Del an\'alisis de loadings PCA (Tabla~\ref{tab:loadings}) se desprende
+        que las variables con mayor carga en las primeras componentes
+        (Flavanoids, TotalPhenols, OD280/OD315 en PC1; ColorIntensity y Proline
+        en PC2) son las m\'as informativas tanto para la clasificaci\'on como para
+        la detecci\'on de desviaciones. Sin embargo, para la detecci\'on de
+        anomal\'ias cobran especial relevancia las variables con menor variabilidad
+        intraclase, como Ash, AlcalinityAsh y Hue, ya que cualquier desviaci\'on
+        significativa en estas variables es m\'as indicativa de un problema real
+        que de variabilidad natural entre muestras del mismo cultivar.
+
+    \end{description}
+
 \subsection{Exploración de los datos usando PCA}
 
 \begin{table}[H]
@@ -749,5 +791,80 @@ A lo largo de este an\'alisis se han tomado las siguientes decisiones:
     fuentes ni la transformaci\'on de datos brutos. Los datos ya est\'an estructurados
     en formato CSV, por lo que la construcci\'on de un pipeline complejo no aporta
     valor en esta fase.
-\end{enumerate}
 
+    \item \textbf{No aplicaci\'on de \textit{data augmentation} ni integraci\'on
+de fuentes adicionales:} El reducido tama\~no del dataset (178 instancias)
+podr\'ia en principio justificar el uso de t\'ecnicas para ampliar
+artificialmente el volumen de datos o la b\'usqueda de fuentes complementarias.
+Ambas alternativas han sido valoradas expl\'icitamente y descartadas por las
+siguientes razones:
+
+\begin{itemize}
+    \item \textbf{Fuentes de datos externas:} Con el objetivo de ampliar el
+    volumen de datos disponibles, se investig\'o la posibilidad de integrar
+    el dataset \textit{Wine Quality} del repositorio UCI \cite{CEB09}, que
+    cuenta con 4.898 instancias de vinos tintos y blancos portugueses
+    (\textit{Vinho Verde}) con 11 variables fisicoqu\'imicas medidas en
+    laboratorio. Sin embargo, tras un an\'alisis comparativo detallado, se
+    descart\'o su integraci\'on por las siguientes incompatibilidades
+    estructurales:
+
+    \begin{itemize}
+        \item \textbf{Variables distintas:} Wine Quality recoge
+        \texttt{fixed\_acidity}, \texttt{volatile\_acidity},
+        \texttt{citric\_acid}, \texttt{residual\_sugar}, \texttt{chlorides},
+        \texttt{free\_sulfur\_dioxide}, \texttt{total\_sulfur\_dioxide},
+        \texttt{density}, \texttt{pH} y \texttt{sulphates}, ninguna de
+        las cuales coincide directamente con las 13 variables del dataset
+        Wine Recognition UCI (fenoles, flavanoides, prolina, etc.).
+
+        \item \textbf{Variable objetivo incompatible:} Wine Quality etiqueta
+        cada muestra con una puntuaci\'on de calidad ordinal entre 0 y 10
+        (variable continua), mientras que Wine Recognition UCI etiqueta por
+        \textbf{cultivar} (variable categ\'orica con 3 clases). Ambas tareas
+        son fundamentalmente distintas y no pueden combinarse en un mismo
+        modelo supervisado.
+
+        \item \textbf{Origen geogr\'afico diferente:} Wine Quality recoge
+        vinos portugueses (\textit{Vinho Verde}), mientras que Wine
+        Recognition UCI recoge vinos italianos de una misma regi\'on. Su
+        integraci\'on ampliar\'ia el sesgo geogr\'afico en lugar de
+        reducirlo.
+
+        \item \textbf{Ausencia de identificador com\'un para la combinaci\'on de datos:}
+        Incluso en un hipot\'etico escenario en el que las variables y la
+        variable objetivo fueran compatibles, la integraci\'on de ambos datasets
+        ser\'ia t\'ecnicamente inviable. El dataset Wine Recognition UCI no
+        incluye ning\'un identificador \'unico de muestra (c\'odigo de lote,
+        n\'umero de an\'alisis o similar) que permita establecer una
+        correspondencia con registros de otras fuentes. Sin una clave com\'un de
+        enlace, cualquier intento de combinaci\'on entre datasets producir\'ia
+        un emparejamiento arbitrario sin validez cient\'ifica.
+    \end{itemize}
+
+    \item \textbf{\textit{Data augmentation} sint\'etica (SMOTE):} T\'ecnicas
+    como SMOTE \cite{Cha+02} generan muestras sint\'eticas interpolando entre
+    observaciones reales de la misma clase y son especialmente \'utiles cuando
+    el desbalanceo entre clases es severo o cuando el tama\~no muestral es 
+    insuficiente para aprender las fronteras de decisi\'on. En nuestro caso, 
+    el desbalanceo es leve (27\%--40\%) y, como se verá posteriormente, el
+    an\'alisis PCA muestra que las tres clases parecen linealmente separables 
+    en el espacio reducido. Aplicar SMOTE en un espacio de alta separabilidad
+    puede generar puntos sint\'eticos en regiones de solapamiento que
+    introduzcan ruido y degraden la calidad del clasificador \cite{HTF09}.
+    Por tanto, la t\'ecnica no aporta valor en este contexto espec\'ifico.
+
+    \item \textbf{Suficiencia del dataset para el problema planteado:}
+    Considerando que el dataset no presenta valores faltantes, que las clases
+    son separables seg\'un el an\'alisis exploratorio y que se aplicar\'a
+    validaci\'on cruzada estratificada con $k=10$ particiones para maximizar
+    el aprovechamiento de las 178 muestras disponibles, se estima que el
+    volumen de datos es suficiente para entrenar y validar los modelos
+    previstos en el Hito~3 sin necesidad de datos sint\'eticos adicionales.
+\end{itemize}
+
+Cabe se\~nalar que esta decisi\'on es espec\'ifica del contexto actual del
+proyecto. En un escenario real donde el sistema VinOps se extienda a nuevas
+denominaciones de origen con menor volumen de datos etiquetados, tanto la
+recolecci\'on activa de muestras de laboratorio como el uso de
+\textit{data augmentation} ser\'ian estrategias a reconsiderar.
