@@ -10,6 +10,7 @@
 Tras haber comprendido la naturaleza fisicoquímica de los datos y su estructura multivariante en el Hito 2, el presente capítulo aborda la fase central del sistema VinOps: el \textbf{modelado predictivo}. El objetivo principal es diseñar, entrenar y validar un conjunto de algoritmos de \textit{Machine Learning} capaces de clasificar de forma robusta la variedad de los cultivares de vino.
 
 Para garantizar la viabilidad del sistema en un entorno de producción real, este proceso no se limita a la búsqueda de la máxima exactitud, sino que sigue una metodología científica estricta: preprocesamiento fundamentado, diseño de experimentos controlados mediante ajuste de hiperparámetros (\textit{hyperparameter tuning}), evaluación mediante métricas robustas al desbalanceo y, finalmente, un análisis de interpretabilidad para validar las reglas subyacentes del modelo.
+
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Diseño experimental y metodología de validación}
 
@@ -17,7 +18,7 @@ En esta fase se ha abordado el problema de clasificación multiclase sobre el \t
 
 Sobre el conjunto de entrenamiento se ha aplicado una validación cruzada de 10 particiones (\textit{10-fold Cross-Validation}) durante el ajuste de los modelos. Esta estrategia permite evitar la necesidad de reservar un conjunto de validación independiente, algo especialmente conveniente en escenarios de \textit{small data}, donde resulta prioritario aprovechar al máximo la información disponible. En consecuencia, el conjunto de test queda completamente aislado y se utiliza exclusivamente para la evaluación final.
 
-Siguiendo los criterios definidos en el Hito 2, la comparación entre modelos se ha basado principalmente en el \textbf{Macro F1-Score} y la \textbf{Balanced Accuracy}, complementadas por \textit{Accuracy}, \textit{Kappa} y el coeficiente \textit{Matthews Correlation Coefficient} (MCC). Este conjunto de métricas permite evaluar el rendimiento de forma robusta en un contexto multiclase con ligero desbalanceo.
+Siguiendo los criterios definidos en el Hito 2, la comparación entre modelos se ha basado principalmente en el Macro F1-Score y la Balanced Accuracy, complementadas por \textit{Accuracy}, \textit{Kappa} y el coeficiente \textit{Matthews Correlation Coefficient} (MCC). Este conjunto de métricas permite evaluar el rendimiento de forma robusta en un contexto multiclase con ligero desbalanceo.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Selección de algoritmos y ajuste de hiperparámetros}
@@ -56,7 +57,7 @@ del sistema VinOps}, por las siguientes razones t\'ecnicas:
     Al promediar sobre m\'ultiples \'arboles entrenados en subconjuntos
     aleatorios (\textit{bagging}), Random Forest reduce la varianza del
     estimador, mitigando el riesgo de sobreajuste que el reducido tama\~no
-    muestral hace especialmente cr\'itico \cite{Breiman2001}.
+    muestral hace especialmente cr\'itico \cite{Breiman2001}.   
 \end{itemize}
 
 El resto de modelos se incluyen como referencias experimentales que permiten
@@ -65,110 +66,153 @@ contextualizar el rendimiento de Random Forest en el espectro de la
 literatura.
 
 
-Se han entrenado y evaluado siete modelos representativos, abarcando enfoques lineales, probabilísticos, basados en distancias y en árboles de decisión.
+Se han entrenado y evaluado siete modelos representativos, abarcando enfoques lineales, probabilísticos, 
+basados en distancias y en árboles de decisión.
 
 \begin{itemize}
-    \item \textbf{LDA y Regresión Logística Multinomial:} Empleados como modelos paramétricos base por su solidez estadística y buena interpretabilidad.
-    \item \textbf{Naive Bayes (NB):} Se ha optimizado el uso de estimaciones de densidad no paramétricas frente a distribuciones gaussianas normales (\textit{usekernel}).
-    \item \textbf{K-Vecinos Más Cercanos (kNN):} Se exploró el número de vecinos óptimos ($k \in \{2, 3, 5, 8, 10\}$) utilizando distancia euclídea.
-    \item \textbf{Máquinas de Vectores de Soporte (SVM Radial):} Dada la posible no linealidad de las fronteras químicas, se optimizó tanto el coste de penalización ($C \in \{0.1, 1, 10, 100\}$) como el parámetro del \textit{kernel} radial ($\sigma$).
-    \item \textbf{Árboles (CART) y Random Forest (RF):} Modelos robustos ante la multicolinealidad detectada en el bloque fenólico. Para RF, se ajustó el número de variables seleccionadas aleatoriamente en cada división ($mtry \in \{2, 4, 6, 8, 10\}$).
+    \item \textbf{LDA (Análisis Discriminante Lineal):} Modelo lineal que proyecta los datos maximizando 
+    la separación entre clases bajo supuestos de normalidad.
+
+    \item \textbf{Regresión Logística Multinomial:} Extensión multiclase que modela directamente la 
+    probabilidad de pertenencia a cada clase.
+
+    \item \textbf{Naive Bayes (NB):} Clasificador probabilístico basado en independencia condicional 
+    entre variables.
+
+    \item \textbf{kNN:} Modelo basado en instancias que clasifica según la proximidad a los vecinos más 
+    cercanos.
+
+    \item \textbf{SVM radial:} Modelo que construye fronteras no lineales mediante un kernel radial.
+
+    \item \textbf{Árbol (CART):} Modelo jerárquico basado en reglas binarias, altamente interpretable.
+
+    \item \textbf{Random Forest (RF):} Ensamblado de árboles entrenados sobre subconjuntos aleatorios, 
+    que reduce la varianza y mejora la robustez.
 \end{itemize}
 
-El ajuste de hiperparámetros se ha realizado mediante Grid Search dentro del esquema de validación cruzada. Esta elección se justifica por el reducido tamaño del dataset y por el carácter acotado de los espacios de búsqueda definidos, lo que hace viable una exploración exhaustiva sin necesidad de recurrir a técnicas más complejas como \textit{Random Search} u optimización bayesiana. Además, la búsqueda en rejilla facilita la trazabilidad experimental y la interpretación metodológica de los resultados.
+El ajuste de hiperparámetros se ha realizado mediante \textbf{Grid Search} dentro del esquema de validación 
+cruzada. Esta elección se justifica por el reducido tamaño del dataset y por el carácter acotado de los 
+espacios de búsqueda, lo que permite una exploración exhaustiva sin recurrir a métodos más complejos.
 
-Las rejillas de b\'usqueda se dise\~naron espec\'ificamente para cada
-modelo, seleccionando \'unicamente los hiperpar\'ametros con mayor impacto
-conocido en el rendimiento y definiendo rangos acotados y justificados.
-La Tabla~\ref{tab:grid} detalla, para cada modelo, el hiperpar\'ametro
-optimizado, la justificaci\'on de su elecci\'on y el espacio de b\'usqueda
-utilizado.
+Las rejillas de búsqueda se definieron seleccionando únicamente los hiperparámetros con mayor impacto en 
+el rendimiento y acotando su rango para evitar una complejidad innecesaria.
 
-\begin{table}[H]
-    \centering
-    \caption{Justificaci\'on del espacio de b\'usqueda de hiperpar\'ametros
-    por modelo}
-    \label{tab:grid}
-    \small
-        \begin{tabularx}{\textwidth}{llXl}
-        \toprule
-        \textbf{Modelo} & \textbf{Hiperpar\'ametro} & \textbf{Justificaci\'on} &
-        \textbf{Espacio de b\'usqueda} \\
-        \midrule
-        Naive Bayes
-            & \texttt{usekernel}
-            & Controla si la densidad condicional se estima con una Gaussiana
-            (FALSE) o con estimaci\'on no param\'etrica por kernel (TRUE). Se
-            explora porque las distribuciones de MalicAcid y Proline presentan
-            asimetr\'ia notable, lo que puede violar la hip\'otesis gaussiana.
-            & \{TRUE, FALSE\} \\
-        \addlinespace
-        kNN
-            & $k$ (n.\textsuperscript{o} de vecinos)
-            & Controla el equilibrio sesgo-varianza: valores peque\~nos de $k$
-            producen fronteras muy locales (alta varianza); valores grandes
-            suavizan la frontera (mayor sesgo). El rango {2--10} cubre desde
-            fronteras muy precisas hasta una media local robusta, adecuado para
-            178 muestras.
-            & $k \in \{2, 3, 5, 8, 10\}$ \\
-        \addlinespace
-        SVM radial
-            & $C$ (coste de penalizaci\'on)
-            & Regula el n\'umero de vectores de soporte: $C$ bajo tolera m\'as
-            errores de clasificaci\'on (mayor margen, mayor regularizaci\'on);
-            $C$ alto busca la separaci\'on perfecta (riesgo de sobreajuste).
-            El rango logar\'itmico cubre desde modelos muy regularizados hasta
-            modelos muy ajustados.
-            & $C \in \{0{,}1,\, 1,\, 10,\, 100\}$ \\
-            & $\sigma$ (ancho del kernel RBF)
-            & Controla el radio de influencia de cada muestra de entrenamiento.
-            Un $\sigma$ bajo produce fronteras muy locales; uno alto las suaviza.
-            Se utiliza estimaci\'on autom\'atica (sigest) como punto de partida
-            y se refina manualmente.
-            & Estimado autom\'aticamente \\
-        \addlinespace
-        \'Arbol (CART)
-            & \texttt{cp} (par\'ametro de complejidad)
-            & Controla la poda del \'arbol: un \texttt{cp} alto produce \'arboles
-            m\'as simples (menor sobreajuste); uno bajo permite \'arboles m\'as
-            profundos. El rango explorado abarca desde \'arboles muy podados
-            hasta \'arboles de profundidad media, adecuado para el tama\~no del
-            dataset.
-            & $\{0{,}01,\, 0{,}05,\, 0{,}07,\, 0{,}10\}$ \\
-        \addlinespace
-        Random Forest
-            & \texttt{mtry} (variables por divisi\'on)
-            & N\'umero de variables seleccionadas aleatoriamente en cada
-            divisi\'on del \'arbol. Valores bajos aumentan la diversidad entre
-            \'arboles (menor correlaci\'on, menor varianza del ensamblado);
-            valores altos se aproximan a un \'arbol \'unico. La regla emp\'irica
-            para clasificaci\'on es $\sqrt{p} \approx 3{,}6$ para $p=13$
-            variables, por lo que el rango $\{2, 4, 6, 8, 10\}$ cubre valores
-            por debajo y por encima de dicha referencia \cite{Breiman2001}.
-            & $\{2,\, 4,\, 6,\, 8,\, 10\}$ \\
-        \bottomrule
-        \end{tabularx}
-    \end{table}
+En \textbf{Naive Bayes}, se exploró \texttt{usekernel}, que determina si la densidad se estima mediante 
+una distribución gaussiana o mediante métodos no paramétricos, relevante ante posibles asimetrías.
 
-LDA y la Regresi\'on Log\'istica Multinomial no requieren ajuste expl\'icito
-de hiperpar\'ametros en su configuraci\'on est\'andar, por lo que se
-emplean directamente como referencias param\'etricas de menor complejidad.
+Para \textbf{kNN}, se ajustó el número de vecinos $k$, que controla el equilibrio sesgo-varianza. Se 
+evaluaron valores en $k \in \{2, 3, 5, 8, 10\}$.
+
+En \textbf{SVM radial}, se optimizaron $C$ (penalización de errores) y $\sigma$ (radio de influencia), 
+explorando valores bajos y medios para capturar distintos niveles de complejidad.
+
+Para el \textbf{árbol (CART)}, se ajustó \texttt{cp}, que controla la poda, considerando valores entre 
+0.01 y 0.10.
+
+En \textbf{Random Forest}, se optimizó \texttt{mtry}, número de variables por división, evaluando 
+$\{2, 4, 6, 8, 10\}$ alrededor de la referencia $\sqrt{p}$.
+
+LDA y la regresión multinomial no requieren ajuste explícito de hiperparámetros, por lo que se emplean 
+como modelos de referencia de menor complejidad.
+
+\begin{table}[h]
+\centering
+\caption{Hiperparámetros optimizados y rangos de búsqueda}
+\vspace{0.2cm}
+\begin{tabular}{l l}
+\hline
+\textbf{Modelo} & \textbf{Hiperparámetros (rango)} \\
+\hline
+Naive Bayes & usekernel $\in \{TRUE, FALSE\}$ \\
+kNN & $k \in \{2, 3, 5, 8, 10\}$ \\
+SVM radial & $C \in \{0.1,1,10,100\}$, $\sigma \in \{0.01,0.05,0.1\}$ \\
+Árbol (CART) & $cp \in [0.01, 0.10]$ \\
+Random Forest & $mtry \in \{2,4,6,8,10\}$ \\
+\hline
+\end{tabular}
+\label{tab:hiperparametros_resumen}
+\end{table}
+
+
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Resultados y análisis comparativo}
 
-Tras la fase de entrenamiento y ajuste, los modelos fueron evaluados sobre el conjunto de prueba aislado. A continuación, se presenta la tabla comparativa con los tres mejores algoritmos, ordenados por su rendimiento en la métrica principal.
+El modelado, la experimentación y la validación se han realizado mediante un cuaderno
+de R desarrollado específicamente para este hito~\cite{model_r_script}, cuyo
+código está disponible en el repositorio VinOps~\cite{vinops_repo}.
+
+Antes de evaluar el rendimiento final sobre el conjunto de test, se analiza el comportamiento de los modelos durante el entrenamiento mediante validación cruzada (10-fold CV). Esta evaluación permite estimar el rendimiento esperado y estudiar tanto la capacidad de aprendizaje como la estabilidad de los modelos.
+
+\vspace{0.3cm}
+
+\begin{table}[h]
+\centering
+\caption{Rendimiento medio estimado en validación cruzada (10-fold CV)}
+\vspace{0.2cm}
+\begin{tabular}{l c c c c c}
+\hline
+\textbf{Modelo} & \textbf{F1\_CV} & \textbf{Bal. Acc. CV} & \textbf{Accuracy\_CV} & \textbf{Kappa\_CV} & \textbf{MCC\_CV} \\
+\hline
+Multinomial & 1.0000 & 1.0000 & 1.0000 & 1.0000 & 1.0000 \\
+SVM radial & 0.9918 & 0.9949 & 0.9921 & 0.9880 & 0.9881 \\
+LDA & 0.9844 & 0.9895 & 0.9841 & 0.9760 & 0.9762 \\
+Random Forest & 0.9771 & 0.9834 & 0.9762 & 0.9639 & 0.9640 \\
+Naive Bayes & 0.9690 & 0.9774 & 0.9683 & 0.9519 & 0.9522 \\
+kNN & 0.9540 & 0.9684 & 0.9524 & 0.9281 & 0.9306 \\
+Árbol & 0.8852 & 0.9104 & 0.8810 & 0.8188 & 0.8191 \\
+\hline
+\end{tabular}
+\label{tab:cv_metricas}
+\end{table}
+
+\vspace{0.3cm}
+
+Como se observa en la Tabla~\ref{tab:cv_metricas}, la mayoría de modelos alcanzan un rendimiento muy elevado durante la 
+validación cruzada, destacando la regresión multinomial, que presenta métricas perfectas, seguida de SVM radial y LDA con 
+resultados prácticamente óptimos. Este comportamiento sugiere que el problema presenta una estructura altamente separable 
+en el espacio de características, donde distintas familias algorítmicas son capaces de capturar eficazmente la frontera de decisión.
+
+No obstante, estos resultados deben interpretarse con cautela, ya que un rendimiento perfecto en validación cruzada puede 
+ser indicativo de un modelo altamente ajustado al conjunto de entrenamiento. Por este motivo, será necesario contrastar 
+estos resultados con el comportamiento observado en el conjunto de test, donde se evaluará la capacidad real de generalización.
+
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{Pictures/bwplot_accuracy.png}
+\caption{Distribución del Accuracy en validación cruzada (10-fold CV) para los distintos modelos.}
+\label{fig:cv_stability}
+\end{figure}
+
+
+El análisis de la estabilidad del aprendizaje (Figura~\ref{fig:cv_stability}) muestra que la mayoría de modelos presentan 
+una dispersión reducida en la métrica de Accuracy. Aunque métricas como el F1-score o la Balanced Accuracy serían más 
+coherentes con el enfoque multiclase adoptado, el análisis de la variabilidad en validación cruzada se ha realizado 
+sobre Accuracy debido a las limitaciones del paquete \texttt{caret}, que únicamente proporciona de forma nativa esta 
+métrica (junto con Kappa) en los objetos de tipo \texttt{resamples}. La extensión de este análisis a métricas personalizadas 
+requeriría un procesamiento adicional fuera del flujo estándar de la librería.
+
+Random Forest destaca por combinar un alto rendimiento con una variabilidad reducida, lo que refuerza su robustez 
+como modelo candidato. Por el contrario, modelos como kNN y, especialmente, el árbol de decisión presentan una
+ mayor dispersión, reflejando una mayor sensibilidad a la partición de los datos y, por tanto, una menor estabilidad. 
+ De manera general, los resultados evidencian un aprendizaje estable en la mayoría de modelos, si bien será necesario  
+ evaluar su comportamiento en el conjunto de test para confirmar su capacidad de generalización y descartar posibles efectos de sobreajuste.
+
+Tras la fase de entrenamiento y ajuste, los modelos fueron evaluados sobre el conjunto de prueba. A 
+continuación, se presenta la tabla comparativa con los algoritmos, ordenados por su rendimiento en la métrica principal (F1-Score).
+
 
 \vspace{0.5cm}
 \begin{table}[h]
     \centering
-    \caption{Comparativa global de modelos sobre el conjunto de prueba.}
+    \caption{Comparativa global de modelos sobre el conjunto de validación.}
     \vspace{0.2cm}
     \begin{tabular}{l c c c c c}
         \hline
         \textbf{Modelo} & \textbf{F1-Score} & \textbf{Balanced Acc.} & \textbf{Accuracy} & \textbf{Kappa} & \textbf{MCC} \\
         \hline
-        Naive Bayes & 0.9804 & 0.9877 & 0.9808 & 0.9709 & 0.9714 \\
         Random Forest & 0.9804 & 0.9877 & 0.9808 & 0.9709 & 0.9714 \\
+        Naive Bayes & 0.9804 & 0.9877 & 0.9808 & 0.9709 & 0.9714 \\
         LDA & 0.9623 & 0.9750 & 0.9615 & 0.9419 & 0.9435 \\
         Multinomial & 0.9611 & 0.9754 & 0.9615 & 0.9420 & 0.9441 \\
         Árbol & 0.9444 & 0.9573 & 0.9423 & 0.9122 & 0.9138 \\
@@ -177,15 +221,31 @@ Tras la fase de entrenamiento y ajuste, los modelos fueron evaluados sobre el co
         Aleatorio - Baseline & 0.4290 & 0.5732 & 0.4231 & 0.1329 & 0.1335 \\
         \hline
     \end{tabular}
-    \label{tab:comparativa_modelos}
+    \label{tab:comparativa_modelos_test}
 \end{table}
 \vspace{0.5cm}
 
-Como se observa en la Tabla~\ref{tab:comparativa_modelos}, los resultados avalan la viabilidad técnica del sistema. La comparativa de modelos muestra un rendimiento muy elevado en la mayoría de algoritmos, destacando Naive Bayes y Random Forest como los modelos con mejores resultados, alcanzando métricas prácticamente idénticas. Esto sugiere que el problema presenta una estructura bien definida en el espacio de características, donde tanto enfoques probabilísticos como modelos basados en ensamblado son capaces de capturar eficazmente las relaciones entre variables.
+Como se observa en la Tabla~\ref{tab:comparativa_modelos_test}, los resultados avalan 
+la viabilidad técnica del sistema. La comparativa de modelos muestra un rendimiento 
+muy elevado en la mayoría de algoritmos, destacando Naive Bayes y Random Forest como
+ los modelos con mejores resultados, alcanzando métricas prácticamente idénticas. Esto
+  sugiere que el problema presenta una estructura bien definida en el espacio de características, 
+  donde tanto enfoques probabilísticos como modelos basados en ensamblado son capaces de capturar 
+  eficazmente las relaciones entre variables.
 
-LDA y la regresión multinomial presentan un rendimiento muy cercano, lo que refuerza la idea de que una parte importante de la separación entre clases puede modelarse de forma aproximadamente lineal. Por su parte, modelos como SVM radial y kNN no aportan mejoras significativas, lo que indica que la complejidad adicional no resulta determinante en este caso.
+LDA y la regresión multinomial presentan un rendimiento muy cercano, lo que refuerza la idea de que 
+una parte importante de la separación entre clases puede modelarse de forma aproximadamente lineal. 
+Por su parte, modelos como SVM radial y kNN no aportan mejoras significativas, lo que indica que la 
+complejidad adicional no resulta determinante en este caso.
 
-El árbol de decisión obtiene un rendimiento inferior, coherente con su mayor varianza en datasets pequeños. Finalmente, el baseline aleatorio se sitúa claramente por debajo del resto, confirmando que los modelos entrenados están capturando una estructura real en los datos.
+El árbol de decisión obtiene un rendimiento inferior, coherente con su mayor varianza en datasets
+ pequeños. Finalmente, el baseline aleatorio se sitúa claramente por debajo del resto, confirmando 
+ que los modelos entrenados están capturando una estructura real en los datos.
+
+Aunque Naive Bayes y Random Forest alcanzan un rendimiento prácticamente idéntico, se selecciona
+ Random Forest como modelo final del sistema por su mayor robustez ante relaciones no lineales, su 
+ menor dependencia de supuestos distribucionales fuertes y su capacidad de ofrecer medidas de importancia 
+ de variables interpretables para el experto enológico.
 
 \begin{table}[h]
     \centering
@@ -256,8 +316,8 @@ El análisis de importancia de variables mediante Random Forest permite identifi
 \textbf{Variable} & \textbf{Importancia} \\
 \hline
 Proline & 100.00 \\
-Color_Intensity & 95.01 \\
-OD280_OD315 & 84.07 \\
+Color\_Intensity & 95.01 \\
+OD280\_OD315 & 84.07 \\
 Flavanoids & 75.11 \\
 Alcohol & 72.78 \\
 \hline

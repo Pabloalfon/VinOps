@@ -62,6 +62,38 @@ ctrl=trainControl(method = "cv", number = 10, savePredictions = "final")
 En lugar de delegar toda la búsqueda al azar, definimos rejillas de hiperparámetros (Grids) para los modelos más complejos, demostrando rigor científico experimental. Además, dando que tenemos un dataset pequeño, no estimamos oportuno utilizar una optimización bayesiana de hiperparámetros. 
 
 ```{r entrenamiento, warning=FALSE, message=FALSE}
+
+metricas_multiclase=function(y_true, y_pred) {
+  y_true=factor(y_true)
+  y_pred=factor(y_pred, levels = levels(y_true))
+  cm=confusionMatrix(y_pred, y_true)
+  tabla=cm$table
+  clases=levels(y_true)
+  
+  metricas_clase=lapply(clases, function(clase) {
+    TP=tabla[clase, clase]
+    FP=sum(tabla[clase, ]) - TP
+    FN=sum(tabla[, clase]) - TP
+    TN=sum(tabla) - TP - FP - FN
+    precision=ifelse(TP + FP == 0, NA, TP / (TP + FP))
+    recall=ifelse(TP + FN == 0, NA, TP / (TP + FN))
+    specificity=ifelse(TN + FP == 0, NA, TN / (TN + FP))
+    f1=ifelse(is.na(precision) || is.na(recall) || precision + recall == 0, NA, 2 * precision * recall / (precision + recall))
+    bal_acc=mean(c(recall, specificity), na.rm = TRUE)
+    data.frame(Clase = clase, Precision = precision, Recall = recall, Specificity = specificity, F1 = f1, Balanced_Accuracy = bal_acc)
+  })
+  
+  metricas_clase=bind_rows(metricas_clase)
+  mcc=mcc_multiclase(tabla)
+  
+  resumen=data.frame(F1_Score = mean(metricas_clase$F1, na.rm = TRUE),
+                        Balanced_Accuracy = mean(metricas_clase$Balanced_Accuracy, na.rm = TRUE),
+                        Accuracy = as.numeric(cm$overall["Accuracy"]),
+                        Kappa = as.numeric(cm$overall["Kappa"]),
+                        MCC = as.numeric(mcc))
+  list(resumen = resumen, matriz = tabla, por_clase = metricas_clase)
+}
+
 # 3.1 Análisis Discriminante Lineal (LDA) - Baseline
 modelo_lda=train(Class ~ ., data = train_data, method = "lda", 
                     trControl = ctrl, preProcess = c("center", "scale"))
@@ -109,11 +141,31 @@ modelos=list(
 )
 ```
 
-# 3. Evaluación de Modelos e hiperparámetros
 
 Utilizamos las funciones personalizadas para obtener métricas robustas frente al leve desbalanceo de clases (Macro F1-Score y Balanced Accuracy).
 
-```{r metricas, echo=FALSE}
+```{r}
+extraer_metricas_cv=function(modelo, nombre) {
+  preds=modelo$pred
+  if(!is.null(modelo$bestTune)) {
+    best=modelo$bestTune
+    for(col in names(best)) {
+      preds=preds[preds[[col]] == best[[col]], ]
+    }
+  }
+  
+  mets=metricas_multiclase(preds$obs, preds$pred)$resumen
+  
+  data.frame(
+    Modelo = nombre,
+    F1_CV = mets$F1_Score,
+    Balanced_Accuracy_CV = mets$Balanced_Accuracy,
+    Accuracy_CV = mets$Accuracy,
+    Kappa_CV = mets$Kappa,
+    MCC_CV = mets$MCC
+  )
+}
+
 # Funciones personalizadas. Encontramos problemas con las librerías, y al final hacemos los cálculos a mano.
 mcc_multiclase=function(tabla) {
   tabla=as.matrix(tabla)
@@ -128,37 +180,6 @@ mcc_multiclase=function(tabla) {
   denominador=sqrt((n^2 - sum_p2) * (n^2 - sum_t2))
   if (denominador == 0) return(NA)
   numerador / denominador
-}
-
-metricas_multiclase=function(y_true, y_pred) {
-  y_true=factor(y_true)
-  y_pred=factor(y_pred, levels = levels(y_true))
-  cm=confusionMatrix(y_pred, y_true)
-  tabla=cm$table
-  clases=levels(y_true)
-  
-  metricas_clase=lapply(clases, function(clase) {
-    TP=tabla[clase, clase]
-    FP=sum(tabla[clase, ]) - TP
-    FN=sum(tabla[, clase]) - TP
-    TN=sum(tabla) - TP - FP - FN
-    precision=ifelse(TP + FP == 0, NA, TP / (TP + FP))
-    recall=ifelse(TP + FN == 0, NA, TP / (TP + FN))
-    specificity=ifelse(TN + FP == 0, NA, TN / (TN + FP))
-    f1=ifelse(is.na(precision) || is.na(recall) || precision + recall == 0, NA, 2 * precision * recall / (precision + recall))
-    bal_acc=mean(c(recall, specificity), na.rm = TRUE)
-    data.frame(Clase = clase, Precision = precision, Recall = recall, Specificity = specificity, F1 = f1, Balanced_Accuracy = bal_acc)
-  })
-  
-  metricas_clase=bind_rows(metricas_clase)
-  mcc=mcc_multiclase(tabla)
-  
-  resumen=data.frame(F1_Score = mean(metricas_clase$F1, na.rm = TRUE),
-                        Balanced_Accuracy = mean(metricas_clase$Balanced_Accuracy, na.rm = TRUE),
-                        Accuracy = as.numeric(cm$overall["Accuracy"]),
-                        Kappa = as.numeric(cm$overall["Kappa"]),
-                        MCC = as.numeric(mcc))
-  list(resumen = resumen, matriz = tabla, por_clase = metricas_clase)
 }
 
 evaluar_modelo=function(modelo, nombre, test_data) {
@@ -177,6 +198,44 @@ baseline_azar=function(nombre, test_data) {
   mets=metricas_multiclase(test_data$Class, pred)
   cbind(Modelo = nombre, mets$resumen)
 }
+```
+
+
+```{r}
+tabla_cv=bind_rows(
+  extraer_metricas_cv(modelo_rf, "Random Forest"),
+  extraer_metricas_cv(modelo_lda, "LDA"),
+  extraer_metricas_cv(modelo_nb, "Naive Bayes"),
+  extraer_metricas_cv(modelo_tree, "Árbol"),
+  extraer_metricas_cv(modelo_multinom, "Multinomial"),
+  extraer_metricas_cv(modelo_knn, "kNN"),
+  extraer_metricas_cv(modelo_svm, "SVM radial")
+) %>% arrange(desc(F1_CV), desc(Balanced_Accuracy_CV))
+
+kable(tabla_cv, digits = 4, caption = "Rendimiento medio estimado en validación cruzada (10-fold CV)")
+
+```
+
+
+```{r}
+resamp = resamples(modelos)
+summary(resamp)
+bwplot(resamp, metric = "Accuracy")
+```
+
+```{r}
+p = bwplot(resamp, metric = "Accuracy")
+
+png("Pictures/bwplot_accuracy.png", width = 900, height = 700)
+print(p)
+dev.off()
+```
+
+
+# 3. Evaluación de Modelos e hiperparámetros
+
+```{r metricas, echo=FALSE}
+
 ```
 
 ```{r comparativa modelos, warning=FALSE}
