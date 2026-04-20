@@ -271,7 +271,7 @@ En la Tabla~\ref{tab:hiperparametros} hiperparámetros seleccionados muestran co
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Análisis de errores}
 
-El análisis de errores revela que las observaciones mal clasificadas se concentran principalmente en la clase 2, que en varios casos es predicha como clase 3. Este patrón sugiere la existencia de una región de solapamiento entre ambas clases, donde la separación no es completamente nítida.
+Tal como se observa en la tabla~\ref{tab:errores_comunes}, el análisis de errores revela que las observaciones mal clasificadas se concentran principalmente en la clase 2, que en varios casos es predicha como clase 3. Este patrón sugiere la existencia de una región de solapamiento entre ambas clases, donde la separación no es completamente nítida.
 
 \vspace{0.3cm}
 
@@ -291,6 +291,7 @@ En particular, la observación 62 destaca como un caso crítico, ya que es siste
 119 & 2 & 3 \\
 \hline
 \end{tabular}
+\label{tab:errores_comunes}
 \end{table}
 
 \vspace{0.3cm}
@@ -322,11 +323,12 @@ Flavanoids & 75.11 \\
 Alcohol & 72.78 \\
 \hline
 \end{tabular}
+\label{tab:importancia_variables}
 \end{table}
 
 \vspace{0.3cm}
 
-Estas variables están directamente relacionadas con la composición fenólica y las características organolépticas del vino, lo que resulta coherente con el dominio enológico. En particular, la prolina y la intensidad del color son conocidos indicadores de diferenciación entre variedades, mientras que los flavonoides y el ratio OD280/OD315 reflejan la concentración de compuestos fenólicos, altamente discriminativos.
+En la tabla~\ref{tab:importancia_variables}, se muestra la importancia de las variables más relevantes según el modelo Random Forest. Estas variables están directamente relacionadas con la composición fenólica y las características organolépticas del vino, lo que resulta coherente con el dominio enológico. En particular, la prolina y la intensidad del color son conocidos indicadores de diferenciación entre variedades, mientras que los flavonoides y el ratio OD280/OD315 reflejan la concentración de compuestos fenólicos, altamente discriminativos.
 
 \vspace{0.3cm}
 
