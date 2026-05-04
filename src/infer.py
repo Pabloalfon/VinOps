@@ -46,7 +46,6 @@ def health():
 
 @app.post("/predict")
 def predict(features: WineFeatures):
-    # Convertir a DataFrame
     df = pd.DataFrame([features.dict()])
     
     # Predecir
