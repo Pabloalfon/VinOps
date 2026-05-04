@@ -1,0 +1,29 @@
+services:
+  training:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    container_name: vinops-training
+    volumes:
+      - ./wine_clean.csv:/data/wine_clean.csv:ro
+      - model_storage:/models
+    environment:
+      - DATA_PATH=/data/wine_clean.csv
+      - MODEL_OUTPUT=/models/wine_model.pkl
+
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.infer
+    container_name: vinops-inference
+    ports:
+      - "8000:8000"
+    volumes:
+      - model_storage:/models
+    environment:
+      - MODEL_PATH=/models/wine_model.pkl
+    depends_on:
+      - training
+
+volumes:
+  model_storage:

@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/710213125125654286/2a07287e61ea4f9788f9721f5170d96a/artifacts
+end_time: 1777886862515
+entry_point_name: ''
+experiment_id: '710213125125654286'
+lifecycle_stage: active
+run_id: 2a07287e61ea4f9788f9721f5170d96a
+run_name: wine_logreg_bonus
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1777886857881
+status: 3
+tags: []
+user_id: root

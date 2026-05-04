@@ -1,0 +1,10 @@
+artifact_location: mlflow-artifacts:/710213125125654286/models/m-78e2b24a4fc64a6d9a7139855edd4f24/artifacts
+creation_timestamp: 1777886968958
+experiment_id: '710213125125654286'
+last_updated_timestamp: 1777886972822
+model_id: m-78e2b24a4fc64a6d9a7139855edd4f24
+model_type: ''
+name: wine_model
+source_run_id: 4b4ad33c5a724612b756a72c7cbb28a9
+status: 2
+status_message: null

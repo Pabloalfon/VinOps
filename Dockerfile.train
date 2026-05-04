@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código
+COPY src/ ./src/
+
+# Volumen para el modelo
+VOLUME ["/models"]
+
+# Variables configurables
+ENV DATA_PATH=/data/wine_clean.csv
+ENV MODEL_OUTPUT=/models/wine_model.pkl
+
+CMD ["python", "src/train.py"]

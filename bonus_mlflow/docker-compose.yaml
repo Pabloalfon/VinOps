@@ -1,0 +1,35 @@
+services:
+  mlflow:
+    image: python:3.11-slim
+    container_name: bonus-mlflow-server
+    working_dir: /app
+    volumes:
+      - ./mlruns:/app/mlruns
+    ports:
+      - "5000:5000"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        pip install --no-cache-dir mlflow==3.1.3 && \
+        mlflow server \
+          --host 0.0.0.0 \
+          --port 5000 \
+          --backend-store-uri file:///app/mlruns \
+          --artifacts-destination file:///app/mlruns
+
+  trainer:
+    image: python:3.11-slim
+    container_name: bonus-mlflow-trainer
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ../wine_clean.csv:/app/wine_clean.csv:ro
+    depends_on:
+      - mlflow
+    command:
+      - /bin/sh
+      - -c
+      - |
+        pip install --no-cache-dir -r requirements.txt && \
+        python train_mlflow.py

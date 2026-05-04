@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código
+COPY src/ ./src/
+
+# Puerto de la API
+EXPOSE 8000
+
+# Variables configurables
+ENV MODEL_PATH=/models/wine_model.pkl
+
+# Levantar API con uvicorn
+CMD ["uvicorn", "src.infer:app", "--host", "0.0.0.0", "--port", "8000"]

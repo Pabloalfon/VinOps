@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/710213125125654286/9bcb1478863a44b9b82037be124e8e88/artifacts
+end_time: 1777239302719
+entry_point_name: ''
+experiment_id: '710213125125654286'
+lifecycle_stage: active
+run_id: 9bcb1478863a44b9b82037be124e8e88
+run_name: iris_logreg_bonus
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1777239298865
+status: 3
+tags: []
+user_id: root
