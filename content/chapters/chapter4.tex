@@ -178,27 +178,27 @@ Esta integraci\'on a\~nade una capa de MLOps al proyecto, ya que facilita la com
 y la gesti\'on de artefactos de modelo.
 
 La evidencia visual del experimento, de la ejecuci\'on registrada y del modelo almacenado puede consultarse en las
-Figuras~\ref{fig:mlflow-experiment}, \ref{fig:mlflow-run} y \ref{fig:mlflow-model}.
+Figuras~\ref{fig:mlflow-experiments}, \ref{fig:wine_random_forest_experiment_Run} y \ref{fig:wine_random_forest_mlmodel}.
 
 \section{Evidencias del bonus MLflow}
 
-Las Figuras~\ref{fig:mlflow-experiment}, \ref{fig:mlflow-run} y \ref{fig:mlflow-model} muestran, respectivamente,
+Las Figuras~\ref{fig:mlflow-experiments}, \ref{fig:wine_random_forest_experiment_Run} y \ref{fig:wine_random_forest_mlmodel} muestran, respectivamente,
 la vista general del experimento, el detalle de la ejecuci\'on registrada y la informaci\'on del modelo almacenado en MLflow.
 Estas capturas sirven como evidencia visual de que el servidor de seguimiento qued\'o correctamente desplegado y de que el
 experimento fue registrado de forma satisfactoria.
 
-En la Figura~\ref{fig:mlflow-experiment} puede observarse el experimento \texttt{DISIA Bonus MLflow} con la ejecuci\'on
-\texttt{iris\_logreg\_bonus} registrada correctamente. Esta vista resulta \'util para mostrar de forma global la relaci\'on
+En la Figura~\ref{fig:mlflow-experiments} puede observarse el experimento \texttt{DISIA Bonus MLflow} con la ejecuci\'on
+\texttt{wine\_random\_forest\_bonus} registrada correctamente. Esta vista resulta \'util para mostrar de forma global la relaci\'on
 entre experimento, ejecuci\'on y modelo asociado.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{Pictures/mlflow_experiment.jpg}
     \caption{Vista general del experimento registrado en MLflow.}
-    \label{fig:mlflow-experiment}
+    \label{fig:mlflow-experiments}
 \end{figure}
 
-La Figura~\ref{fig:mlflow-run} presenta el detalle de la ejecuci\'on, incluyendo m\'etricas, par\'ametros y metadatos
+La Figura~\ref{fig:wine_random_forest_experiment_Run} presenta el detalle de la ejecuci\'on, incluyendo m\'etricas, par\'ametros y metadatos
 de la run. Esta captura permite comprobar que el entrenamiento no solo se ejecut\'o correctamente, sino que adem\'as qued\'o
 documentado con informaci\'on reproducible sobre la configuraci\'on utilizada.
 
@@ -206,10 +206,10 @@ documentado con informaci\'on reproducible sobre la configuraci\'on utilizada.
     \centering
     \includegraphics[width=\textwidth]{Pictures/mlflow_run.jpg}
     \caption{Detalle de la ejecuci\'on registrada, incluyendo m\'etricas y par\'ametros.}
-    \label{fig:mlflow-run}
+    \label{fig:wine_random_forest_experiment_Run}
 \end{figure}
 
-Finalmente, la Figura~\ref{fig:mlflow-model} muestra el modelo almacenado en MLflow y vinculado a la ejecuci\'on de origen.
+Finalmente, la Figura~\ref{fig:wine_random_forest_mlmodel} muestra el modelo almacenado en MLflow y vinculado a la ejecuci\'on de origen.
 Esto demuestra que el bonus no se limit\'o al registro de m\'etricas, sino que tambi\'en incluy\'o el almacenamiento del artefacto
 del modelo junto con su trazabilidad experimental.
 
@@ -217,7 +217,7 @@ del modelo junto con su trazabilidad experimental.
     \centering
     \includegraphics[width=\textwidth]{Pictures/mlflow_model.jpg}
     \caption{Modelo almacenado en MLflow y vinculado a la ejecuci\'on de origen.}
-    \label{fig:mlflow-model}
+    \label{fig:wine_random_forest_mlmodel}
 \end{figure}
 
 \section{Valoraci\'on final del hito}
