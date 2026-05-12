@@ -8,14 +8,16 @@ services:
       - "8001:8000"
     volumes:
       - ./logs:/app/logs
-      - ../wine_clean.csv:/app/data/wine_clean.csv:ro
-      - ./models:/app/models:ro
+      - ./feedback:/app/feedback
+      - ./wine_clean.csv:/app/data/wine_clean.csv:ro
+      - ./models:/app/models
     env_file:
       - .env
     environment:
       - MODEL_PATH=/app/models/wine_model.pkl
       - DATA_PATH=/app/data/wine_clean.csv
       - LOG_PATH=/app/logs
+      - FEEDBACK_PATH=/app/feedback/feedback.csv
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
       - CPU_ALERT_THRESHOLD=${CPU_ALERT_THRESHOLD:-80.0}
@@ -35,11 +37,9 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
     restart: unless-stopped
     networks:
       - vinops-net
