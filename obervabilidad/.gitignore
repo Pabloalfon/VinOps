@@ -1,0 +1,7 @@
+logs/*.jsonl
+logs/*.log
+models/*.pkl
+models/*.joblib
+__pycache__/
+*.pyc
+.env

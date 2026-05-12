@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  inference-monitored:
+    build: .
+    container_name: vinops_inference_monitored
+    ports:
+      - "8001:8000"
+    volumes:
+      # Logs persistentes en host
+      - ./logs:/app/logs
+      # Dataset de referencia para estadísticas de anomalías
+      - ../wine_clean.csv:/app/data/wine_clean.csv:ro
+      # Modelo entrenado (copiar previamente desde Hito 4 o generar)
+      - ./models:/app/models:ro
+    environment:
+      - MODEL_PATH=/app/models/wine_model.pkl
+      - DATA_PATH=/app/data/wine_clean.csv
+      - LOG_PATH=/app/logs
+    restart: unless-stopped

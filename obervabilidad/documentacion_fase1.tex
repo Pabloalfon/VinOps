@@ -1,0 +1,144 @@
+% ============================================================
+% FASE 1 DEL HITO 5: INSTRUMENTACIÓN Y TRAZABILIDAD
+% Bloque listo para integrar en la memoria del proyecto VinOps
+% ============================================================
+
+\section{Hito 5: Monitorización y Feedback Loop}
+
+\subsection{Fase 1 -- Instrumentación y Trazabilidad}
+
+\subsubsection{Objetivo y alcance}
+
+El objetivo de esta fase es dotar al sistema VinOps de capacidades de observabilidad que permitan registrar, en tiempo real,
+ tanto métricas operativas del servicio como métricas proxy de calidad del modelo. Esta instrumentación constituye la base sobre 
+ la que se construirán las fases posteriores de visualización (Prometheus/Grafana), detección de drift y feedback loop.
+
+\subsubsection{Diseño de la arquitectura de observabilidad}
+
+Se ha diseñado una arquitectura de tres capas:
+
+\begin{enumerate}
+    \item \textbf{Capa de instrumentación:} integrada directamente en el servicio de inferencia, emite métricas en cada petición.
+    \item \textbf{Capa de persistencia:} logs estructurados en formato JSONL y métricas Prometheus expuestas vía HTTP.
+    \item \textbf{Capa de consumo:} endpoints de consulta (\texttt{/health}, \texttt{/monitor}, \texttt{/metrics}) y ficheros de log accesibles desde el host.
+\end{enumerate}
+
+\subsubsection{Métricas operativas}
+
+Siguiendo los requisitos del profesorado, se han instrumentado las siguientes métricas operativas mediante la librería \texttt{prometheus\_client}:
+
+\begin{table}[htbp]
+\centering
+\caption{Métricas operativas instrumentadas en VinOps}
+\label{tab:metricas-operativas}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Métrica} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\texttt{vinops\_requests\_total} & Counter & Peticiones HTTP por método, endpoint y código de estado \\
+\texttt{vinops\_request\_latency\_seconds} & Histogram & Latencia de las peticiones a \texttt{/predict} (buckets configurados) \\
+\texttt{vinops\_cpu\_usage\_percent} & Gauge & Uso de CPU del proceso de inferencia \\
+\texttt{vinops\_memory\_usage\_bytes} & Gauge & Consumo de RAM residente del proceso \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Estas métricas se actualizan en cada petición y se exponen en el endpoint \texttt{GET /metrics} en formato texto compatible con Prometheus.
+
+\subsubsection{Métricas proxy del modelo}
+
+Dado que en producción la etiqueta real del cultivar no está disponible en el momento de la predicción, se ha optado por un conjunto de métricas 
+\textit{proxy} que detectan degradación del modelo sin requerir \textit{ground truth}:
+
+\begin{table}[htbp]
+\centering
+\caption{Métricas proxy del modelo implementadas}
+\label{tab:metricas-proxy}
+\begin{tabular}{@{}llp{6.5cm}@{}}
+\toprule
+\textbf{Métrica} & \textbf{Tipo} & \textbf{Justificación enológica} \\
+\midrule
+\texttt{vinops\_prediction\_confidence} & Histogram & Confianza máxima de la predicción. Si baja respecto al período de entrenamiento, el modelo está en zona gris (frontera entre cultivares). \\
+\texttt{vinops\_prediction\_entropy} & Histogram & Entropía de la distribución de probabilidades. Entropía alta indica confusión entre clases, típica del solapamiento clase~2--clase~3 detectado en el Hito~3. \\
+\texttt{vinops\_predictions\_by\_class\_total} & Counter & Distribución de clases predichas. Desviaciones respecto a la distribución del entrenamiento (33\%/40\%/27\%) alertan de cambios en la línea de producción. \\
+\texttt{vinops\_anomaly\_flags\_total} & Counter & Muestras cuya composición fisicoquímica supera $\pm 3\sigma$ respecto al dataset de referencia (umbrales del Hito~2). \\
+\texttt{vinops\_low\_confidence\_total} & Counter & Predicciones con confianza $<0.70$, umbral que marca el límite de fiabilidad operativa. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Detección de anomalías en inferencia}
+
+Se ha reutilizado la metodología del Hito~2 adaptándola a tiempo real. Para cada muestra entrante se calcula el z-score de cada variable respecto a la media y desviación del dataset de entrenamiento:
+
+\begin{equation}
+    z_j = \frac{x_j - \bar{x}_j}{\sigma_j}, \qquad j = 1,\dots,13
+\end{equation}
+
+Si $|z_j| > 3$ para cualquier variable, la muestra se marca como anómala. Esta información se incluye tanto en la respuesta JSON de \texttt{/predict} como en el log estructurado, permitiendo al enólogo revisar las variables específicas que desvían del perfil esperado.
+
+\subsubsection{Logging estructurado}
+
+Cada predicción genera una línea JSON en el fichero \texttt{logs/vinops\_predictions.jsonl} con la siguiente estructura:
+
+\begin{itemize}
+    \item \texttt{timestamp}: instante ISO 8601 de la predicción.
+    \item \texttt{input}: vector completo de las 13 variables fisicoquímicas.
+    \item \texttt{prediction} y \texttt{probabilities}: clase predicha y distribución de probabilidades.
+    \item \texttt{confidence} y \texttt{entropy}: métricas proxy de calidad.
+    \item \texttt{anomaly}: resultado del detector con z-scores por variable.
+    \item \texttt{latency\_ms}: tiempo de respuesta de la inferencia.
+\end{itemize}
+
+Este formato garantiza trazabilidad completa y facilita análisis posteriores mediante herramientas de procesamiento de logs.
+
+\subsubsection{Endpoints del servicio monitorizado}
+
+\begin{table}[htbp]
+\centering
+\caption{Endpoints de la API instrumentada}
+\label{tab:endpoints}
+\begin{tabular}{@{}llp{7cm}@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Método} & \textbf{Descripción} \\
+\midrule
+\texttt{/health} & GET & Estado del servicio, metadatos del modelo, resumen de monitorización y uso de CPU/RAM \\
+\texttt{/predict} & POST & Predicción + métricas proxy + detección de anomalías + logging \\
+\texttt{/metrics} & GET & Métricas Prometheus en formato text/plain \\
+\texttt{/monitor} & GET & Resumen agregado: predicciones totales, anomalías, confianza media, distribución de clases \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Evidencias de funcionamiento}
+
+A continuación se presentan los resultados de las pruebas ejecutadas sobre el servicio desplegado.
+
+\paragraph{Predicción normal.} Muestra típica de la clase~1. El modelo predice con confianza 0.995 y entropía 0.045. Ninguna variable supera el umbral de anomalía.
+
+\paragraph{Predicción de frontera.} Muestra con valores intermedios. El modelo predice clase~2 con confianza 0.79 y entropía 0.91, indicando mayor incertidumbre pero dentro de rangos normales.
+
+\paragraph{Predicción anómala.} Muestra con valores extremos pero dentro de los rangos físicos del vino. El detector marca anomalía en \texttt{Ash}, \texttt{Magnesium} y \texttt{Proanthocyanins} (z-scores $>3$). La confianza del modelo baja a 0.755 y la entropía sube a 0.99, señalando que la muestra cae fuera del perfil aprendido.
+
+\paragraph{Endpoint \texttt{/metrics}.} Se verifica la exposición correcta de métricas Prometheus, incluyendo contadores de peticiones, histogramas de latencia y gauges de CPU/RAM.
+
+\paragraph{Endpoint \texttt{/monitor}.} Tras las tres predicciones de prueba, el resumen agregado reporta: 3 predicciones totales, 1 anomalía detectada, confianza media 0.847 y distribución equilibrada entre las tres clases.
+
+\paragraph{Logs estructurados.} Se verifica la generación de 3 líneas JSON en \texttt{logs/vinops\_predictions.jsonl}, cada una con la trazabilidad completa descrita.
+
+\subsubsection{Decisiones de diseño tomadas}
+
+\begin{enumerate}
+    \item \textbf{Separación en carpeta \texttt{observabilidad/}:} se mantiene desacoplada del código del Hito~4 para no contaminar el despliegue base, facilitando la revisión independiente por el tribunal.
+    \item \textbf{Uso de métricas proxy en lugar de F1/AUC online:} se justifica porque la etiqueta real no está disponible en el momento de la predicción. El F1-Score se recalculará offline en la Fase~3 (feedback loop).
+    \item \textbf{Reutilización de umbrales $\pm 3\sigma$ del Hito~2:} garantiza coherencia metodológica entre el análisis exploratorio y la monitorización operativa.
+    \item \textbf{Validación de entrada con Pydantic:} rechaza valores físicamente imposibles (p.\ ej.\ alcohol $>16\%$) antes de la inferencia, actuando como primera línea de defensa.
+\end{enumerate}
+
+\subsubsection{Próximas fases}
+
+\begin{itemize}
+    \item \textbf{Fase 2:} Despliegue de Prometheus + Grafana para visualización de métricas.
+    \item \textbf{Fase 3:} Endpoint \texttt{/feedback} y retraining semi-automático.
+    \item \textbf{Fase 4:} Integración con MLflow Tracking del bonus del Hito~4.
+\end{itemize}
