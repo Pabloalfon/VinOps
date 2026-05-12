@@ -1,0 +1,119 @@
+% ============================================================
+% FASE 2 + 3 DEL HITO 5: DETECCION DE DRIFT + ALERTAS + SIMULACION
+% Bloque listo para integrar en la memoria del proyecto VinOps
+% ============================================================
+
+\subsection{Fase 2 -- Deteccion de Deriva de Datos (Data Drift)}
+
+\subsubsection{Fundamento teorico}
+
+El \textit{data drift} o deriva de datos se define como el cambio en la distribucion de las variables de entrada ($P(\mathbf{X})$) entre el entrenamiento y la operacion. A diferencia del \textit{concept drift} ---que afecta la relacion $P(Y|\mathbf{X})$---, el data drift es detectable sin \textit{ground truth}, lo cual lo hace especialmente relevante para VinOps, donde la etiqueta real del cultivar no esta disponible en el momento de la prediccion.
+
+Se distinguen tres niveles de severidad, siguiendo la taxonomia de \cite{alibi_detect} y \cite{nannyml}:
+
+\begin{itemize}
+    \item \textbf{Drift leve} ($0.1 < PSI < 0.25$): monitorizar, no requiere accion inmediata.
+    \item \textbf{Drift moderado} ($PSI > 0.25$ o $KS\_p < 0.05$ en 1--2 variables): revisar proceso de produccion.
+    \item \textbf{Drift severo} ($KS\_p < 0.05$ en $\geq 3$ variables o $W > 2.0$): reentrenamiento recomendado.
+\end{itemize}
+
+\subsubsection{Tecnicas implementadas}
+
+Se han implementado tres tecnicas complementarias, todas basadas en \texttt{scipy} para mantener el contenedor ligero:
+
+\begin{table}[htbp]
+\centering
+\caption{Tecnicas de deteccion de drift implementadas en VinOps}
+\label{tab:tecnicas-drift}
+\begin{tabular}{@{}llp{5.5cm}@{}}
+\toprule
+\textbf{Tecnica} & \textbf{Tipo} & \textbf{Umbrales} \\
+\midrule
+Kolmogorov-Smirnov (KS) & Univariado & $p < 0.05$ por variable \\
+Population Stability Index (PSI) & Univariado & $PSI > 0.25$ (alerta), $> 0.1$ (monitor) \\
+Wasserstein (media estandarizada) & Multivariado & $W > 2.0$ (alerta), $> 1.0$ (monitor) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{KS test.} Contrasta la hipotesis nula de que dos muestras provienen de la misma distribucion continua. Se aplica por variable entre el dataset de referencia (entrenamiento) y la ventana deslizante de produccion.
+
+\paragraph{PSI.} Mide la magnitud del desplazamiento de la distribucion dividiendo en 10 bins y comparando proporciones. Es la metrica estandar en modelos de scoring y riesgo crediticio.
+
+\paragraph{Wasserstein multivariado.} Calcula la distancia de Wasserstein por variable, normalizada por la desviacion estandar de referencia, y promedia. Detecta cambios conjuntos que las tecnicas univariadas podrian omitir.
+
+\subsubsection{Ventana deslizante y evaluacion periodica}
+
+Dado el volumen reducido del dataset (178 instancias), se configura una ventana de 20 muestras con evaluacion cada 10 predicciones. Esto equilibra:
+
+\begin{itemize}
+    \item \textbf{Sensibilidad:} 20 muestras son suficientes para estimar 13 variables.
+    \item \textbf{Latencia:} evaluar cada 10 predicciones evita sobrecarga computacional.
+    \item \textbf{Memoria:} la ventana se mantiene en memoria (deque) sin persistencia externa.
+\end{itemize}
+
+\subsubsection{Endpoint /drift}
+
+Devuelve el estado completo del detector:
+
+\begin{itemize}
+    \item \texttt{status}: OK / MONITOR / DRIFT\_DETECTED
+    \item \texttt{recommendation}: OK / MONITOR / RETRAIN
+    \item \texttt{ks\_test}: p-values por variable, variables alertadas
+    \item \texttt{psi}: scores por variable, variables alertadas
+    \item \texttt{wasserstein}: distancia multivariada
+\end{itemize}
+
+\subsection{Fase 3 -- Sistema de Alertas}
+
+\subsubsection{Canal de alertas: Telegram Bot}
+
+Se ha seleccionado Telegram como canal de notificaciones por las siguientes razones:
+
+\begin{enumerate}
+    \item \textbf{Simplicidad tecnica:} la API de Telegram es HTTP REST sin autenticacion compleja (solo token).
+    \item \textbf{Visibilidad:} el grupo incluye al equipo tecnico y al stakeholder (director tecnico de la bodega).
+    \item \textbf{Demo en vivo:} durante la presentacion, el tribunal puede ver las alertas en tiempo real en el chat.
+    \item \textbf{Sin infraestructura propia:} no requiere servidor SMTP, conectores de Teams ni permisos de tenant.
+\end{enumerate}
+
+\subsubsection{Throttling}
+
+Para evitar spam en escenarios de degradacion continua, se implementa un mecanismo de \textit{throttling} de 60 segundos por tipo de alerta. Esto garantiza que el canal no se sature si el sistema detecta drift persistente.
+
+\subsubsection{Tipos de alerta}
+
+\begin{table}[htbp]
+\centering
+\caption{Tipos de alerta implementados en VinOps}
+\label{tab:alertas}
+\begin{tabular}{@{}llp{5cm}l@{}}
+\toprule
+\textbf{Tipo} & \textbf{Trigger} & \textbf{Mensaje} & \textbf{Canal} \\
+\midrule
+Drift & $KS\_p < 0.05$ en $\geq 3$ vars o $PSI > 0.25$ en $\geq 2$ vars & Deriva detectada, reentrenar & Telegram \\
+Anomalia & Tasa de anomalias $> 25\%$ en ventana & Tasa de anomalias elevada & Telegram \\
+Confianza baja & Confianza media $< 0.65$ en ventana & Confianza media baja & Telegram \\
+Operativa & CPU $> 80\%$ o RAM $> 300$ MB & Alerta de recurso & Telegram \\
+Simulacion & Endpoint /simulate/* invocado & Simulacion completada & Telegram \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Simulacion de entorno anomalo}
+
+Se han implementado dos endpoints de simulacion para validar el sistema sin datos reales de produccion:
+
+\paragraph{/simulate/anomaly.} Genera $N$ muestras con valores extremos ($\pm 2.5\sigma$ respecto a la media de referencia) pero dentro de los rangos fisicos del vino. Permite verificar que el detector de anomalias y el sistema de alertas responden correctamente.
+
+\paragraph{/simulate/drift.} Genera $N$ muestras donde una variable especifica esta desplazada $+k\sigma$ respecto a la distribucion de entrenamiento, manteniendo el resto de variables normales. Simula un cambio real en la linea de produccion (p. ej. uva de otra zona con mayor contenido alcoholico).
+
+Ambas simulaciones inyectan las muestras en la ventana de drift, evaluan el estado y envian una alerta resumen al canal de Telegram.
+
+\subsubsection{Decisiones de diseno}
+
+\begin{enumerate}
+    \item \textbf{No se usa Alibi Detect ni NannyML:} aunque son herramientas de referencia del estado del arte \cite{alibi_detect, nannyml}, se opto por implementacion propia con \texttt{scipy} para mantener el contenedor ligero y evitar dependencias pesadas en un entorno academico. En produccion real se migraria a dichas herramientas.
+    \item \textbf{Token en .env, no en codigo:} la seguridad del bot se gestiona via variables de entorno, con \texttt{.env} en \texttt{.gitignore}.
+    \item \textbf{Metricas operativas y de modelo separadas:} siguiendo la taxonomia del profesor, las alertas operativas (CPU/RAM) y las de modelo (drift/confianza) tienen tipos distintos y umbrales independientes.
+\end{enumerate}

@@ -7,14 +7,66 @@ services:
     ports:
       - "8001:8000"
     volumes:
-      # Logs persistentes en host
       - ./logs:/app/logs
-      # Dataset de referencia para estadísticas de anomalías
       - ../wine_clean.csv:/app/data/wine_clean.csv:ro
-      # Modelo entrenado (copiar previamente desde Hito 4 o generar)
       - ./models:/app/models:ro
+    env_file:
+      - .env
     environment:
       - MODEL_PATH=/app/models/wine_model.pkl
       - DATA_PATH=/app/data/wine_clean.csv
       - LOG_PATH=/app/logs
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - CPU_ALERT_THRESHOLD=${CPU_ALERT_THRESHOLD:-80.0}
+      - MEM_ALERT_THRESHOLD_MB=${MEM_ALERT_THRESHOLD_MB:-300.0}
+      - CONFIDENCE_ALERT_THRESHOLD=${CONFIDENCE_ALERT_THRESHOLD:-0.65}
+      - ANOMALY_RATE_ALERT_THRESHOLD=${ANOMALY_RATE_ALERT_THRESHOLD:-0.25}
     restart: unless-stopped
+    networks:
+      - vinops-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: vinops_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - vinops-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vinops_grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    networks:
+      - vinops-net
+    depends_on:
+      - prometheus
+
+networks:
+  vinops-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

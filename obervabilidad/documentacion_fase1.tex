@@ -9,9 +9,7 @@
 
 \subsubsection{Objetivo y alcance}
 
-El objetivo de esta fase es dotar al sistema VinOps de capacidades de observabilidad que permitan registrar, en tiempo real,
- tanto métricas operativas del servicio como métricas proxy de calidad del modelo. Esta instrumentación constituye la base sobre 
- la que se construirán las fases posteriores de visualización (Prometheus/Grafana), detección de drift y feedback loop.
+El objetivo de esta fase es dotar al sistema VinOps de capacidades de observabilidad que permitan registrar, en tiempo real, tanto métricas operativas del servicio como métricas proxy de calidad del modelo. Esta instrumentación constituye la base sobre la que se construirán las fases posteriores de visualización (Prometheus/Grafana), detección de drift y feedback loop.
 
 \subsubsection{Diseño de la arquitectura de observabilidad}
 
@@ -47,8 +45,7 @@ Estas métricas se actualizan en cada petición y se exponen en el endpoint \tex
 
 \subsubsection{Métricas proxy del modelo}
 
-Dado que en producción la etiqueta real del cultivar no está disponible en el momento de la predicción, se ha optado por un conjunto de métricas 
-\textit{proxy} que detectan degradación del modelo sin requerir \textit{ground truth}:
+Dado que en producción la etiqueta real del cultivar no está disponible en el momento de la predicción, se ha optado por un conjunto de métricas \textit{proxy} que detectan degradación del modelo sin requerir \textit{ground truth}:
 
 \begin{table}[htbp]
 \centering
