@@ -6,15 +6,15 @@ Visualizacion de metricas para el sistema VinOps.
 
 ```
 obervabilidad/
-├── docker-compose.yaml          (reemplazar por el nuevo)
-├── prometheus.yml               (nuevo)
-├── .env                         (ya lo tienes)
+├── docker-compose.yaml          
+├── prometheus.yml               
+├── .env                         
 ├── grafana/
 │   ├── datasources/
-│   │   └── datasource.yml       (nuevo)
+│   │   └── datasource.yml       
 │   └── dashboards/
-│       ├── dashboard.yml        (nuevo)
-│       └── vinops-dashboard.json (nuevo)
+│       ├── dashboard.yml        
+│       └── vinops-dashboard.json 
 ```
 
 ## Despliegue

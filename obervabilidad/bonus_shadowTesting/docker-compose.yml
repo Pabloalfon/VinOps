@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  shadow-testing:
+    build:
+      context: ..
+      dockerfile: bonus_shadowTesting/Dockerfile
+    container_name: vinops_shadow_testing
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./models:/app/models
+      - ./shadow_logs:/app/shadow_logs
+      - ../wine_clean.csv:/app/data/wine_clean.csv:ro
+      - ../feedback:/app/feedback:ro
+    environment:
+      - CHAMPION_PATH=/app/models/wine_model.pkl
+      - CHALLENGER_PATH=/app/models/wine_model_challenger.pkl
+      - DATA_PATH=/app/data/wine_clean.csv
+      - FEEDBACK_PATH=/app/feedback/feedback.csv
+      - SHADOW_LOG_PATH=/app/shadow_logs/comparisons.csv
+    restart: unless-stopped
