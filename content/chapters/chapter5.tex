@@ -15,7 +15,7 @@ Además del desarrollo técnico, este capítulo pone el foco en las decisiones d
 
 La arquitectura implementada extiende el servicio de inferencia desarrollado en el hito anterior mediante una capa adicional de instrumentación, trazabilidad y supervisión. El sistema se articula alrededor de una API desarrollada con FastAPI, accesible en el puerto 8001, que expone tanto el endpoint de predicción como varios endpoints auxiliares orientados a la monitorización, el feedback y el reentrenamiento.
 
-A nivel funcional, el flujo de operación es el siguiente. Cuando un cliente envía una muestra a \texttt{/predict}, el sistema realiza la inferencia, calcula métricas proxy de calidad de la predicción, evalúa si la entrada presenta rasgos anómalos respecto a la distribución de entrenamiento, registra la ejecución en un log estructurado y actualiza las métricas expuestas para Prometheus. Sobre esta base, Grafana permite visualizar el comportamiento del servicio, mientras que un sistema de alertas por Telegram notifica situaciones relevantes al equipo.
+A nivel funcional, cuando un cliente envía una muestra a \texttt{/predict}, el sistema realiza la inferencia, calcula métricas proxy de calidad de la predicción, evalúa si la entrada presenta rasgos anómalos respecto a la distribución de entrenamiento, registra la ejecución en un log estructurado y actualiza las métricas expuestas para Prometheus. Sobre esta base, Grafana permite visualizar el comportamiento del servicio, mientras que un sistema de alertas por Telegram notifica situaciones relevantes al equipo.
 
 La solución se ha desacoplado del despliegue del Hito 4 mediante una carpeta específica de observabilidad. Esta decisión permite mantener separado el sistema base de inferencia del entorno ampliado de monitorización, facilitando la revisión académica y evitando introducir complejidad innecesaria sobre el despliegue mínimo ya validado.
 
@@ -67,7 +67,7 @@ Uno de los objetivos centrales del hito ha sido convertir la API de inferencia e
 
 La elección de Prometheus como solución de monitorización responde a varias razones. En primer lugar, se trata de una herramienta utilizada en entornos cloud-native y con integración nativa con Grafana. En segundo lugar, el cliente de Python resulta ligero y sencillo de integrar en FastAPI. Finalmente, el formato textual de las métricas facilita tanto la depuración como la validación manual durante una demostración académica.
 
-Las principales métricas operativas instrumentadas han sido las siguientes:
+Las principales métricas operativas instrumentadas han sido las presentados en la Tabla \ref{tab:metricas_operativas_hito5}.
 
 \begin{table}[h]
 \centering
@@ -88,7 +88,7 @@ Las principales métricas operativas instrumentadas han sido las siguientes:
 
 Junto a las métricas operativas, se ha considerado necesario instrumentar también métricas proxy del modelo. La razón es que, en el dominio del proyecto, la etiqueta real no está disponible en el instante de la predicción, por lo que no es posible calcular online métricas de rendimiento supervisadas. En consecuencia, se ha optado por monitorizar señales indirectas que permitan detectar comportamientos sospechosos antes de disponer del \textit{ground truth}.
 
-Entre estas métricas proxy destacan la confianza de la predicción, la entropía de la distribución de probabilidades, el conteo de predicciones por clase, la tasa de muestras anómalas y el número de predicciones con confianza baja. La confianza y la entropía resultan especialmente útiles porque permiten detectar cuándo el modelo se encuentra en una zona de mayor incertidumbre, algo relevante en este problema debido al solapamiento ya observado entre algunas clases en el Hito 3.
+Entre estas métricas proxy, presentadas en la Tabla \ref{tab:metricas_proxy_hito5}, destacan la confianza de la predicción, la entropía de la distribución de probabilidades, el conteo de predicciones por clase, la tasa de muestras anómalas y el número de predicciones con confianza baja. La confianza y la entropía resultan especialmente útiles porque permiten detectar cuándo el modelo se encuentra en una zona de mayor incertidumbre, algo relevante en este problema debido al solapamiento ya observado entre algunas clases en el Hito 3.
 
 \begin{table}[h]
 \centering
@@ -140,7 +140,7 @@ Las Figuras~\ref{fig:h5_predict_normal} y~\ref{fig:h5_predict_anomalous} ilustra
 
 Más allá de supervisar cada petición individual, el sistema necesita detectar cambios sostenidos en la distribución de los datos de entrada. En este contexto se ha optado por centrar el análisis en el \textit{data drift} o deriva de covariables, es decir, en el cambio de la distribución \(P(X)\) entre la fase de entrenamiento y la fase de operación. Esta elección resulta especialmente adecuada para VinOps porque puede evaluarse sin necesidad de disponer de la etiqueta real de cada muestra.
 
-La implementación combina tres técnicas complementarias. En primer lugar, la prueba de Kolmogorov-Smirnov permite comparar distribuciones continuas de forma no paramétrica para cada variable individual. En segundo lugar, el \textit{Population Stability Index} proporciona una señal interpretable sobre la magnitud del desplazamiento entre distribuciones. En tercer lugar, la distancia de Wasserstein estandarizada ofrece una visión agregada del desplazamiento conjunto de la ventana observada.
+La Tabla \ref{tab:drift_tecnicas_hito5} presenta tres técnicas complementarias utilizadas en la implementación. En primer lugar, la prueba de Kolmogorov-Smirnov permite comparar distribuciones continuas de forma no paramétrica para cada variable individual. En segundo lugar, el \textit{Population Stability Index} proporciona una señal interpretable sobre la magnitud del desplazamiento entre distribuciones. En tercer lugar, la distancia de Wasserstein estandarizada ofrece una visión agregada del desplazamiento conjunto de la ventana observada.
 
 \begin{table}[h]
 \centering
@@ -168,7 +168,7 @@ Con el objetivo de evitar saturación informativa, se ha incorporado un mecanism
 
 Las alertas implementadas cubren dos familias de necesidades. Por un lado, se emiten alertas de modelo cuando se detecta drift, una tasa alta de anomalías o una caída sostenida de confianza media. Por otro lado, se generan alertas operativas cuando el servicio supera ciertos umbrales de CPU o memoria. A ello se añaden endpoints de simulación, como \texttt{/simulate/anomaly} y \texttt{/simulate/drift}, que permiten provocar escenarios controlados y verificar experimentalmente el funcionamiento del detector y del canal de notificación.
 
-Con el fin de validar experimentalmente el sistema de monitorización, se ejecutaron simulaciones controladas que permitieron observar tanto la activación del canal de alertas como la actualización del estado de deriva del sistema.
+Con el fin de validar experimentalmente el sistema de monitorización, se ejecutaron simulaciones controladas que permitieron observar tanto la activación del canal de alertas como la actualización del estado de deriva del sistema. Las alertas enviadas por el bot de Telegram puede verse en las Figuras \ref{fig:h5_telegram_anomaly} y \ref{fig:h5_telegram_drift}, además del estado del estado del drift en la Figura \ref{fig:h5_drift_state}.
 
 \begin{figure}[H]
 \centering
@@ -195,7 +195,7 @@ Con el fin de validar experimentalmente el sistema de monitorización, se ejecut
 
 \section{Visualización con Prometheus y Grafana}
 
-La solución de visualización se ha articulado en tres capas. La primera capa corresponde a la propia API, que emite las métricas instrumentadas a través del endpoint \texttt{/metrics}. La segunda capa la constituye Prometheus, que scrapea periódicamente dichas métricas y las almacena como series temporales. Finalmente, Grafana consume esos datos y los presenta en un dashboard orientado a la monitorización del servicio.
+La solución de visualización se ha articulado en tres capas. La primera capa corresponde a la propia API, que emite las métricas instrumentadas a través del endpoint \texttt{/metrics}. La segunda capa la constituye Prometheus, que scrapea periódicamente dichas métricas y las almacena como series temporales. Por último, Grafana consume esos datos y los presenta en un dashboard orientado a la monitorización del servicio.
 
 El dashboard diseñado para el proyecto integra paneles dedicados a CPU, memoria, peticiones por segundo, latencia, confianza media del modelo, distribución de clases predichas, tasa de anomalías y entropía de predicción. Esta selección responde al objetivo de combinar indicadores operativos clásicos con señales específicas del comportamiento del clasificador, de modo que el operador disponga de una visión más completa del estado del sistema.
 
@@ -233,11 +233,11 @@ Otra decisión especialmente importante ha sido no reentrenar el modelo únicame
 \text{Dataset final} = \text{Original} + 2 \times \text{Feedback}
 \]
 
-En el caso evaluado, el conjunto original de 178 muestras se combina con diez correcciones duplicadas, produciendo un total de 198 observaciones para el reentrenamiento. Esta estrategia permite introducir adaptación al contexto operativo manteniendo al mismo tiempo una base suficientemente estable sobre la que apoyar la generalización del modelo.
+En el caso evaluado, el conjunto original de 178 muestras se combina con diez correcciones duplicadas, produciendo un total de 198 observaciones para el reentrenamiento. Esta estrategia permite introducir adaptación al contexto operativo manteniendo al mismo tiempo una base suficientemente estable sobre la que apoyar la generalización del modelo. La duplicación del feedback se interpreta como una ponderación simple de las muestras recientes, no como generación de nuevas observaciones. En una versión productiva, esta ponderación debería parametrizarse y validarse empíricamente comparando distintos pesos del feedback.
 
 Tras el reentrenamiento, el nuevo artefacto se recarga en memoria mediante el endpoint \texttt{/reload}, sin necesidad de reiniciar el contenedor. Esta decisión mejora la disponibilidad del sistema, preserva las métricas acumuladas por Prometheus y evita perder tanto la ventana de drift como el contexto operativo de la ejecución en curso.
 
-La operativa del \textit{feedback loop} se validó mediante el envío manual de correcciones al endpoint \texttt{/feedback}, su persistencia en CSV y el posterior lanzamiento del proceso de reentrenamiento. Las Figuras~\ref{fig:h5_feedback_send}--\ref{fig:h5_reload} recogen la secuencia completa de corrección, almacenamiento, reentrenamiento y recarga del modelo.
+La operativa del \textit{feedback loop} se validó mediante el envío manual de correcciones al endpoint \texttt{/feed\-back}, su persistencia en CSV y el posterior lanzamiento del proceso de reentrenamiento. Las Figuras~\ref{fig:h5_feedback_send}--\ref{fig:h5_reload} recogen la secuencia completa de corrección, almacenamiento, reentrenamiento y recarga del modelo.
 
 \begin{figure}[H]
 \centering
