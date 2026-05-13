@@ -3,23 +3,23 @@
 
 \section{Introducción}
 
-El quinto hito del proyecto tiene como objetivo ampliar el sistema desplegado en el Hito 4 con capacidades de observabilidad, monitorización y mejora continua propias de un flujo MLOps. Para ello, se ha diseñado una solución orientada a supervisar el comportamiento operativo del servicio, detectar posibles signos de degradación del modelo en producción y cerrar el ciclo mediante un mecanismo de realimentación y reentrenamiento.
+El quinto hito del proyecto tiene como objetivo ampliar el sistema desplegado en el Hito 4 con capacidades de observabilidad, monitorización y mejora continua propias de un flujo MLOps. Para ello, se ha diseñado una solución orientada a supervisar el comportamiento operativo del servicio, detectar posibles signos de degradación del modelo en producción y cerrar el ciclo mediante un mecanismo de retroalimentación y reentrenamiento.
 
-A diferencia de los hitos anteriores, en esta fase el foco no se sitúa únicamente en desplegar un modelo funcional, sino en dotar al sistema de herramientas que permitan operar con mayor seguridad una vez puesto en servicio. En particular, se ha abordado el problema de cómo monitorizar un clasificador cuando la etiqueta real de cada muestra no está disponible en el instante de la predicción, situación habitual en escenarios reales de explotación.
+A diferencia de los hitos anteriores, esta fase el foco se sitúa en dotar al sistema de herramientas que permitan operar con mayor seguridad una vez puesto en servicio. Se ha abordado el problema de cómo monitorizar un clasificador cuando la etiqueta real de cada muestra no está disponible en el instante de la predicción, situación habitual en escenarios reales de explotación.
 
 En el contexto de VinOps, la clase real del cultivar no puede conocerse en tiempo real, ya que su validación depende de la revisión posterior del enólogo. Esta restricción impide calcular de manera inmediata métricas clásicas de rendimiento como el F1-score, la precisión o el AUC. Por este motivo, en este hito se ha optado por complementar la inferencia con métricas proxy, detección de drift, alertas automáticas y un mecanismo de feedback que permita incorporar correcciones humanas al ciclo de vida del modelo.
 
-Además del desarrollo técnico, este capítulo pone el foco en las decisiones de diseño adoptadas para mantener una solución ligera, reproducible y coherente con el carácter académico del proyecto. Se justifica por qué se ha optado por determinadas herramientas y estrategias, y se analizan las implicaciones que dichas decisiones han tenido sobre la mantenibilidad, la interpretabilidad y la operatividad del sistema.
+Además del desarrollo técnico, este capítulo se centra en las decisiones de diseño adoptadas para mantener una solución ligera, reproducible y coherente ya que se justifica por qué se ha optado por determinadas herramientas y estrategias, y se analizan las implicaciones que dichas decisiones han tenido sobre la mantenibilidad, la interpretabilidad y la operatividad del sistema.
 
 \section{Arquitectura general del sistema de observabilidad}
 
-La arquitectura implementada extiende el servicio de inferencia desarrollado en el hito anterior mediante una capa adicional de instrumentación, trazabilidad y supervisión. El sistema se articula alrededor de una API desarrollada con FastAPI, accesible en el puerto 8001, que expone tanto el endpoint de predicción como varios endpoints auxiliares orientados a la monitorización, el feedback y el reentrenamiento.
+La arquitectura implementada extiende el servicio de inferencia desarrollado en el hito anterior mediante una capa adicional de instrumentación, trazabilidad y supervisión. El sistema se articula alrededor de una API desarrollada con FastAPI, accesible en el puerto 8001, que expone tanto el endpoint de predicción como varios endpoints adicionales orientados a la monitorización, el feedback y el reentrenamiento.
 
 A nivel funcional, cuando un cliente envía una muestra a \texttt{/predict}, el sistema realiza la inferencia, calcula métricas proxy de calidad de la predicción, evalúa si la entrada presenta rasgos anómalos respecto a la distribución de entrenamiento, registra la ejecución en un log estructurado y actualiza las métricas expuestas para Prometheus. Sobre esta base, Grafana permite visualizar el comportamiento del servicio, mientras que un sistema de alertas por Telegram notifica situaciones relevantes al equipo.
 
-La solución se ha desacoplado del despliegue del Hito 4 mediante una carpeta específica de observabilidad. Esta decisión permite mantener separado el sistema base de inferencia del entorno ampliado de monitorización, facilitando la revisión académica y evitando introducir complejidad innecesaria sobre el despliegue mínimo ya validado.
+La solución se ha desacoplado del despliegue del Hito 4 mediante una carpeta específica de observabilidad. Esta decisión permite mantener separado el sistema base de inferencia del entorno ampliado de monitorización.
 
-De forma general, los endpoints principales del servicio son los siguientes:
+De forma general, los endpoints principales del servicio son los siguientes, que se presentan en la tabla \ref{tab:endpoints_hito5}:
 
 \begin{table}[h]
 \centering
@@ -41,14 +41,14 @@ De forma general, los endpoints principales del servicio son los siguientes:
 \label{tab:endpoints_hito5}
 \end{table}
 
-Como ampliación opcional, se ha implementado también un entorno de \textit{shadow testing} en un puerto independiente, orientado a comparar un modelo en producción con un modelo candidato sin afectar a la respuesta devuelta al cliente. Esta extensión se comenta más adelante como bonus del hito.
+Adicionalmente, se ha implementado también un entorno de \textit{shadow testing} en un puerto independiente, orientado a comparar un modelo en producción con un modelo candidato sin afectar a la respuesta devuelta al cliente. Esta extensión se comenta más adelante como bonus del hito.
 
 Las Figuras~\ref{fig:h5_docker_stack} y~\ref{fig:h5_health_main} ilustran tanto el despliegue efectivo del entorno como la disponibilidad del servicio principal.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.96\textwidth]{Pictures/dockerdesktop.png}
-\caption{Entorno de observabilidad desplegado en Docker con la API monitorizada y los servicios auxiliares activos.}
+\caption{Entorno desplegado en Docker con la API monitorizada y los servicios auxiliares activos.}
 \label{fig:h5_docker_stack}
 \end{figure}
 
@@ -63,11 +63,11 @@ Las Figuras~\ref{fig:h5_docker_stack} y~\ref{fig:h5_health_main} ilustran tanto 
 
 \section{Instrumentación y trazabilidad del servicio}
 
-Uno de los objetivos centrales del hito ha sido convertir la API de inferencia en un servicio observable. Para ello, se han instrumentado métricas operativas habituales en sistemas software, tales como número de peticiones, latencia, uso de CPU y consumo de memoria. Esta instrumentación permite supervisar no solo el comportamiento del modelo, sino también el estado general del servicio que lo ejecuta.
+Uno de los objetivos del hito ha sido convertir la API de inferencia en un servicio observable. Para ello, se han instrumentado métricas operativas habituales en sistemas software, tales como número de peticiones, latencia, uso de CPU y consumo de memoria. Esta instrumentación permite supervisar tanto el comportamiento del modelo como el estado general del servicio que lo ejecuta.
 
-La elección de Prometheus como solución de monitorización responde a varias razones. En primer lugar, se trata de una herramienta utilizada en entornos cloud-native y con integración nativa con Grafana. En segundo lugar, el cliente de Python resulta ligero y sencillo de integrar en FastAPI. Finalmente, el formato textual de las métricas facilita tanto la depuración como la validación manual durante una demostración académica.
+La elección de Prometheus como solución de monitorización se debe a varias razones. En primer lugar, se trata de una herramienta utilizada en entornos cloud-native y con integración nativa con Grafana. En segundo lugar, el cliente de Python resulta ligero y sencillo de integrar en FastAPI. Finalmente, el formato textual de las métricas facilita tanto la depuración como la validación manual.
 
-Las principales métricas operativas instrumentadas han sido las presentados en la Tabla \ref{tab:metricas_operativas_hito5}.
+Las principales métricas operativas instrumentadas han sido las presentadas en la Tabla \ref{tab:metricas_operativas_hito5}.
 
 \begin{table}[h]
 \centering
@@ -86,9 +86,9 @@ Las principales métricas operativas instrumentadas han sido las presentados en 
 \label{tab:metricas_operativas_hito5}
 \end{table}
 
-Junto a las métricas operativas, se ha considerado necesario instrumentar también métricas proxy del modelo. La razón es que, en el dominio del proyecto, la etiqueta real no está disponible en el instante de la predicción, por lo que no es posible calcular online métricas de rendimiento supervisadas. En consecuencia, se ha optado por monitorizar señales indirectas que permitan detectar comportamientos sospechosos antes de disponer del \textit{ground truth}.
+Junto a las métricas operativas, se ha considerado necesario incluir también métricas proxy del modelo. La razón es que, en el dominio de VinOps, la etiqueta real no está disponible en el instante de la predicción, por lo que no es posible calcular online métricas de rendimiento supervisadas. En consecuencia, se ha optado por monitorizar señales indirectas que permitan detectar comportamientos sospechosos antes de disponer del \textit{ground truth}.
 
-Entre estas métricas proxy, presentadas en la Tabla \ref{tab:metricas_proxy_hito5}, destacan la confianza de la predicción, la entropía de la distribución de probabilidades, el conteo de predicciones por clase, la tasa de muestras anómalas y el número de predicciones con confianza baja. La confianza y la entropía resultan especialmente útiles porque permiten detectar cuándo el modelo se encuentra en una zona de mayor incertidumbre, algo relevante en este problema debido al solapamiento ya observado entre algunas clases en el Hito 3.
+Entre estas métricas proxy, presentadas en la Tabla \ref{tab:metricas_proxy_hito5}, destacan la confianza de la predicción, la entropía de la distribución de probabilidades, el conteo de predicciones por clase, la tasa de muestras anómalas y el número de predicciones con confianza baja. La confianza y la entropía resultan especialmente útiles porque permiten detectar cuándo el modelo se encuentra en una zona de mayor incertidumbre, algo relevante en este problema debido al solapamiento ya observado entre algunas clases en el Hito 3. 
 
 \begin{table}[h]
 \centering
@@ -108,13 +108,13 @@ Entre estas métricas proxy, presentadas en la Tabla \ref{tab:metricas_proxy_hit
 \label{tab:metricas_proxy_hito5}
 \end{table}
 
-Otra decisión de diseño relevante ha sido reutilizar en inferencia la lógica de detección de anomalías introducida en el Hito 2. Para cada muestra entrante se calcula el z-score de cada variable respecto a la media y desviación estándar del conjunto de entrenamiento, siguiendo la expresión:
+Otra decisión de diseño relevante ha sido reutilizar en inferencia el criterio estadístico de detección de anomalías introducido en el Hito 2. Para cada muestra entrante, primero se toma la clase predicha por el modelo y, a continuación, se comprueba si sus variables se encuentran dentro del rango esperado para dicho cultivar. En concreto, una variable \(x_j\) se considera fuera de rango si no pertenece al intervalo:
 
 \[
-z_j = \frac{x_j - \bar{x}_j}{\sigma_j}, \qquad j = 1,\ldots,13
+[\bar{x}_{k,j} - 3\sigma_{k,j},\ \bar{x}_{k,j} + 3\sigma_{k,j}]
 \]
 
-Si alguna variable supera en valor absoluto el umbral de tres desviaciones estándar, la muestra se marca como anómala. Esta estrategia aporta coherencia entre el análisis exploratorio previo y la supervisión operativa del sistema, además de ofrecer una forma simple y explicable de identificar entradas poco representativas.
+donde \(\bar{x}_{k,j}\) y \(\sigma_{k,j}\) representan, respectivamente, la media y la desviación estándar de la variable \(j\) en la clase predicha \(k\). Si una o varias variables quedan fuera de este intervalo, la muestra se marca como potencialmente anómala para su revisión por el enólogo. Esta estrategia aporta coherencia entre el análisis exploratorio previo y la supervisión operativa del sistema, además de ofrecer una forma simple y explicable de identificar entradas poco representativas.
 
 La trazabilidad de las predicciones se completa mediante un sistema de \textit{logging} estructurado en formato JSONL. Cada inferencia genera una línea independiente que incluye el instante temporal, las variables de entrada, la clase predicha, las probabilidades por clase, la confianza, la entropía, el resultado del detector de anomalías y la latencia de la respuesta. Se ha optado por JSONL porque permite escritura incremental eficiente sin necesidad de reescribir estructuras completas, y facilita el análisis posterior con herramientas de línea de comandos o librerías como \texttt{pandas}.
 
@@ -138,7 +138,7 @@ Las Figuras~\ref{fig:h5_predict_normal} y~\ref{fig:h5_predict_anomalous} ilustra
 
 \section{Detección de drift y sistema de alertas}
 
-Más allá de supervisar cada petición individual, el sistema necesita detectar cambios sostenidos en la distribución de los datos de entrada. En este contexto se ha optado por centrar el análisis en el \textit{data drift} o deriva de covariables, es decir, en el cambio de la distribución \(P(X)\) entre la fase de entrenamiento y la fase de operación. Esta elección resulta especialmente adecuada para VinOps porque puede evaluarse sin necesidad de disponer de la etiqueta real de cada muestra.
+El sistema necesita detectar cambios sostenidos en la distribución de los datos de entrada, por lo que en este contexto se ha optado por centrar el análisis en el \textit{data drift} o deriva de covariables, es decir, en el cambio de la distribución \(P(X)\) entre la fase de entrenamiento y la fase de operación. Esta elección resulta especialmente adecuada para VinOps porque puede evaluarse sin necesidad de disponer de la etiqueta real de cada muestra.
 
 La Tabla \ref{tab:drift_tecnicas_hito5} presenta tres técnicas complementarias utilizadas en la implementación. En primer lugar, la prueba de Kolmogorov-Smirnov permite comparar distribuciones continuas de forma no paramétrica para cada variable individual. En segundo lugar, el \textit{Population Stability Index} proporciona una señal interpretable sobre la magnitud del desplazamiento entre distribuciones. En tercer lugar, la distancia de Wasserstein estandarizada ofrece una visión agregada del desplazamiento conjunto de la ventana observada.
 
@@ -160,20 +160,20 @@ Wasserstein & Multivariada & \(>1.0\) monitor, \(>2.0\) alerta & Capturar despla
 
 Con el fin de equilibrar sensibilidad y coste computacional, se ha configurado una ventana deslizante de veinte muestras y una evaluación periódica cada diez predicciones. Esta decisión se justifica por el reducido tamaño del dataset original, ya que ventanas demasiado grandes introducirían una detección excesivamente lenta y ventanas demasiado pequeñas generarían señales muy ruidosas. La información de drift se resume mediante una regla jerárquica que diferencia entre estado normal, estado de monitorización y deriva detectada.
 
-De forma simplificada, el sistema considera que existe deriva cuando se acumulan evidencias suficientes en varias variables o cuando el desplazamiento global medido por Wasserstein supera el umbral crítico. Esta combinación reduce el riesgo de falsos positivos debidos a fluctuaciones puntuales en una sola característica y aporta mayor robustez a la decisión global del monitor.
+El sistema considera que existe deriva cuando se acumulan evidencias suficientes en varias variables o cuando el desplazamiento global medido por Wasserstein supera el umbral crítico. Esta combinación reduce el riesgo de falsos positivos debidos a fluctuaciones puntuales en una sola característica y aporta mayor robustez a la decisión global del monitor.
 
-Sobre esta base se ha implementado un sistema de alertas por Telegram. Se eligió este canal por su simplicidad a la hora de integrarlo, por no requerir infraestructura propia y por resultar especialmente adecuado para una demostración en vivo, ya que permite visualizar las notificaciones de forma inmediata desde un chat. Además, el uso de variables de entorno para el token y el \texttt{chat\_id} evita exponer credenciales en el código fuente.
+Sobre esta base se ha implementado un sistema de alertas por Telegram. Se eligió este canal por su simplicidad a la hora de integrarlo y por resultar adecuado para una demostración, ya que permite visualizar las notificaciones desde un chat. Además, el uso de variables de entorno para el token y el \texttt{chat\_id} evita exponer credenciales en el código fuente.
 
-Con el objetivo de evitar saturación informativa, se ha incorporado un mecanismo de \textit{throttling} de sesenta segundos por tipo de alerta. Esta decisión reduce el riesgo de spam cuando una condición anómala persiste durante varios ciclos de monitorización, manteniendo al mismo tiempo una cadencia suficientemente frecuente para no perder capacidad de reacción.
+Con el objetivo de evitar saturación informativa, se ha incorporado un mecanismo de \textit{throttling} de sesenta segundos por tipo de alerta. Esta decisión reduce el riesgo de spam cuando una condición anómala persiste durante varios ciclos de monitorización, manteniendo al mismo tiempo una cadencia frecuente para no perder capacidad de reacción.
 
-Las alertas implementadas cubren dos familias de necesidades. Por un lado, se emiten alertas de modelo cuando se detecta drift, una tasa alta de anomalías o una caída sostenida de confianza media. Por otro lado, se generan alertas operativas cuando el servicio supera ciertos umbrales de CPU o memoria. A ello se añaden endpoints de simulación, como \texttt{/simulate/anomaly} y \texttt{/simulate/drift}, que permiten provocar escenarios controlados y verificar experimentalmente el funcionamiento del detector y del canal de notificación.
+Las alertas implementadas cubren dos familias de necesidades. Por un lado, se emiten alertas de modelo cuando se detecta drift, una tasa alta de anomalías o una caída sostenida de confianza media. Por otro lado, se generan alertas operativas cuando el servicio supera ciertos umbrales de CPU o memoria. A ello se añaden endpoints de simulación, como \texttt{/simulate/anomaly} y \texttt{/simulate/drift}, que permiten provocar escenarios controlados y verificar el funcionamiento del detector y del canal de notificación.
 
-Con el fin de validar experimentalmente el sistema de monitorización, se ejecutaron simulaciones controladas que permitieron observar tanto la activación del canal de alertas como la actualización del estado de deriva del sistema. Las alertas enviadas por el bot de Telegram puede verse en las Figuras \ref{fig:h5_telegram_anomaly} y \ref{fig:h5_telegram_drift}, además del estado del estado del drift en la Figura \ref{fig:h5_drift_state}.
+Con el fin de validar experimentalmente el sistema de monitorización, se ejecutaron simulaciones controladas que permitieron observar tanto la activación del canal de alertas como la actualización del estado de deriva del sistema. Las alertas enviadas por el bot de Telegram puede verse en las Figuras \ref{fig:h5_telegram_anomaly} y \ref{fig:h5_telegram_drift}, además del estado del drift en la Figura \ref{fig:h5_drift_state}.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.78\textwidth]{Pictures/deteccion anomalia telegram.png}
-\caption{Alerta enviada por Telegram tras detectar un comportamiento anómalo en el sistema monitorizado.}
+\caption{Alerta enviada por Telegram tras detectar comportamiento anómalo en el sistema monitorizado.}
 \label{fig:h5_telegram_anomaly}
 \end{figure}
 
@@ -187,7 +187,7 @@ Con el fin de validar experimentalmente el sistema de monitorización, se ejecut
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{Pictures/estado de drift.png}
-\caption{Estado de drift del sistema tras la simulación, mostrando activación del monitor y recomendación de actuación.}
+\caption{Estado de drift tras la simulación, mostrando activación del monitor y recomendación generada.}
 \label{fig:h5_drift_state}
 \end{figure}
 
@@ -195,7 +195,7 @@ Con el fin de validar experimentalmente el sistema de monitorización, se ejecut
 
 \section{Visualización con Prometheus y Grafana}
 
-La solución de visualización se ha articulado en tres capas. La primera capa corresponde a la propia API, que emite las métricas instrumentadas a través del endpoint \texttt{/metrics}. La segunda capa la constituye Prometheus, que scrapea periódicamente dichas métricas y las almacena como series temporales. Por último, Grafana consume esos datos y los presenta en un dashboard orientado a la monitorización del servicio.
+La solución de visualización se ha articulado en tres capas. La primera capa corresponde a la propia API, que emite las métricas a través del endpoint \texttt{/metrics}. La segunda capa la constituye Prometheus, que scrapea periódicamente dichas métricas y las almacena como series temporales. Por último, Grafana consume esos datos y los presenta en un dashboard orientado a la monitorización del servicio.
 
 El dashboard diseñado para el proyecto integra paneles dedicados a CPU, memoria, peticiones por segundo, latencia, confianza media del modelo, distribución de clases predichas, tasa de anomalías y entropía de predicción. Esta selección responde al objetivo de combinar indicadores operativos clásicos con señales específicas del comportamiento del clasificador, de modo que el operador disponga de una visión más completa del estado del sistema.
 
@@ -221,13 +221,13 @@ La evidencia experimental de esta capa puede verse en las Figuras~\ref{fig:h5_pr
 
 \section{Feedback loop y retraining semi-automático}
 
-Uno de los elementos más importantes del Hito 5 es el cierre parcial del ciclo de vida del modelo mediante un mecanismo de feedback humano. La idea central consiste en permitir que el enólogo corrija predicciones una vez dispone de la etiqueta real, almacenando dichas correcciones para su uso posterior en un reentrenamiento supervisado. De este modo, el sistema no solo detecta degradación, sino que también incorpora una vía explícita para adaptarse a nuevos datos.
+Uno de los elementos más importantes del Hito 5 es el cierre parcial del ciclo de vida del modelo mediante un mecanismo de feedback humano. La idea consiste en permitir que el enólogo corrija predicciones una vez dispone de la etiqueta real, almacenando dichas correcciones para su uso posterior en un reentrenamiento supervisado. De este modo, el sistema no solo detecta degradación, sino que también incorpora una vía explícita para adaptarse a nuevos datos.
 
-El diseño del trigger de reentrenamiento constituye una decisión relevante. En lugar de activar el retraining cuando se detecta un cierto número de eventos de drift, se ha optado por utilizar como criterio la acumulación de diez feedbacks reales. La razón es que el drift indica cambio en la distribución de entrada, pero no aporta por sí mismo la etiqueta correcta de las nuevas muestras. Sin \textit{ground truth}, un reentrenamiento supervisado carecería de base válida.
+El diseño del trigger de reentrenamiento constituye una decisión relevante, ya que en lugar de activar el retraining cuando se detecta un cierto número de eventos de drift, se ha optado por utilizar como criterio la acumulación de diez feedbacks reales. La razón es que el drift indica cambio en la distribución de entrada, pero no aporta por sí mismo la etiqueta correcta de las nuevas muestras. Sin \textit{ground truth}, un reentrenamiento supervisado carecería de base válida.
 
-Las correcciones se almacenan en un archivo CSV en lugar de una base de datos relacional. Esta elección se justifica por la simplicidad del escenario, por el reducido volumen esperado de registros y por la facilidad con la que el archivo puede revisarse manualmente durante la evaluación académica. Aunque una base de datos ofrecería mejores garantías de escalabilidad y concurrencia, su incorporación habría añadido complejidad innecesaria para este contexto.
+Las correcciones se almacenan en un archivo CSV en lugar de una base de datos relacional. Esta elección se justifica por la simplicidad del escenario, por el reducido volumen esperado de registros y por la facilidad con la que el archivo puede revisarse. 
 
-Otra decisión especialmente importante ha sido no reentrenar el modelo únicamente con las muestras corregidas. Dado que el dataset original contiene 178 observaciones, usar solo diez ejemplos de feedback conduciría a un riesgo elevado de sobreajuste y \textit{catastrophic forgetting}. Por este motivo, el sistema genera un dataset combinado formado por los datos originales más el feedback duplicado, otorgando así mayor peso a las correcciones recientes sin destruir el conocimiento aprendido previamente.
+Otra decisión importante ha sido no reentrenar el modelo únicamente con las muestras corregidas. Dado que el dataset original contiene 178 observaciones, usar solo diez ejemplos de feedback conduciría a un riesgo elevado de sobreajuste y \textit{catastrophic forgetting}. Por este motivo, el sistema genera un dataset combinado formado por los datos originales más el feedback duplicado, otorgando así mayor peso a las correcciones recientes sin destruir el conocimiento aprendido previamente.
 
 \[
 \text{Dataset final} = \text{Original} + 2 \times \text{Feedback}
@@ -263,7 +263,7 @@ La operativa del \textit{feedback loop} se validó mediante el envío manual de 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{Pictures/retraining telegram.png}
-\caption{Notificación emitida tras la ejecución del proceso de reentrenamiento.}
+\caption{Notificación emitida en Telegram tras la ejecución del proceso de reentrenamiento.}
 \label{fig:h5_retraining_telegram}
 \end{figure}
 
@@ -274,7 +274,7 @@ La operativa del \textit{feedback loop} se validó mediante el envío manual de 
 \label{fig:h5_reload}
 \end{figure}
 
-Los resultados obtenidos en el escenario descrito se resumen en la Tabla~\ref{tab:retraining_resultados}. Aunque se trata de una prueba académica y no de un proceso continuo real, el experimento demuestra la viabilidad del enfoque adoptado para cerrar parcialmente el ciclo de vida del modelo.
+Los resultados obtenidos en el escenario descrito se resumen en la Tabla~\ref{tab:retraining_resultados}. El experimento demuestra la viabilidad del enfoque adoptado para cerrar parcialmente el ciclo de vida del modelo.
 
 \begin{table}[h]
 \centering
@@ -347,6 +347,9 @@ A lo largo del desarrollo del hito se han adoptado varias decisiones con impacto
 \centering
 \caption{Decisiones de diseño principales del Hito 5}
 \vspace{0.2cm}
+
+\renewcommand{\arraystretch}{1.25}
+
 \begin{tabular}{p{3.5cm} p{4cm} p{6.2cm}}
 \hline
 \textbf{Decisión} & \textbf{Alternativa descartada} & \textbf{Justificación} \\
@@ -356,20 +359,22 @@ Implementación estadística ligera & Frameworks como Alibi Detect o NannyML & S
 CSV para feedback & SQLite o PostgreSQL & El volumen esperado es pequeño y el archivo resulta fácil de inspeccionar. \\
 Retraining con originales + feedback duplicado & Reentrenar solo con feedback & Se reduce el riesgo de sobreajuste y de olvido catastrófico en small data. \\
 Trigger de 10 feedbacks & Trigger por eventos de drift & El drift no aporta por sí mismo etiquetas válidas para aprendizaje supervisado. \\
-Telegram como canal de alertas & Correo o plataformas corporativas & La integración es simple y la demostración resulta más visible e inmediata. \\
+Telegram como canal de alertas & Correo o plataformas corporativas & La integración es simple y la demostración resulta más visible. \\
 Recarga en caliente & Reinicio del contenedor & Se evita downtime y se preserva el estado operativo. \\
 Shadow testing & A/B testing & Permite evaluar modelos candidatos sin afectar al tráfico servido. \\
 \hline
 \end{tabular}
+
+\renewcommand{\arraystretch}{1}
+
 \label{tab:decisiones_hito5}
 \end{table}
-
-Las implicaciones de estas decisiones son ambivalentes. Por un lado, el sistema gana claridad, trazabilidad y facilidad de despliegue en un entorno académico. Por otro, algunas elecciones priorizan la simplicidad frente a la escalabilidad, por lo que en un entorno productivo real sería razonable evolucionar hacia soluciones con versionado de modelos, almacenamiento más robusto y mecanismos automáticos de rollback.
+Las implicaciones de estas decisiones son ambivalentes. Por un lado, el sistema gana claridad, trazabilidad y facilidad de despliegue. Por otro, algunas elecciones priorizan la simplicidad frente a la escalabilidad, por lo que en un entorno productivo real sería razonable evolucionar hacia soluciones con versionado de modelos, almacenamiento más robusto y mecanismos automáticos de rollback.
 
 \section{Limitaciones y valoración final del hito}
 
 A pesar de los avances alcanzados, la solución implementada presenta varias limitaciones. En primer lugar, el modelo reentrenado sobrescribe el artefacto anterior, por lo que no existe aún un versionado formal ni un mecanismo automático de reversión. En segundo lugar, el feedback utilizado para reentrenar no queda marcado como consumido, lo que podría complicar su trazabilidad si el sistema evolucionara hacia un uso continuado. Finalmente, el entorno de shadow testing se ha planteado como una validación controlada, por lo que su valor demostrativo es mayor que su madurez operativa real.
 
-No obstante, el Hito 5 supone un avance cualitativo importante respecto a los hitos anteriores. El proyecto deja de ser únicamente un modelo desplegado y pasa a incorporar varios elementos esenciales de observabilidad y ciclo de vida MLOps: métricas operativas, métricas proxy del modelo, detección de drift, alertas automáticas, feedback humano, reentrenamiento supervisado y comparación segura entre modelos.
+No obstante, el Hito 5 supone un avance importante respecto a los hitos anteriores. El proyecto deja de ser únicamente un modelo desplegado y pasa a incorporar varios elementos esenciales de observabilidad y ciclo de vida MLOps: métricas operativas, métricas proxy del modelo, detección de drift, alertas automáticas, feedback humano, reentrenamiento supervisado y comparación segura entre modelos.
 
-En conjunto, las decisiones adoptadas incrementan la complejidad estructural del sistema respecto al Hito 4, pero lo hacen a cambio de una mejora clara en su capacidad de supervisión, adaptación y explotación. Aunque se trata todavía de una solución local y académica, el resultado aproxima el proyecto a un escenario real de operación y sienta una base razonable para futuras extensiones como MLflow, auto-retraining, canary deployment o estimación avanzada de degradación sin \textit{ground truth}.
+En conjunto, las decisiones adoptadas incrementan la complejidad estructural del sistema respecto al Hito 4, pero lo hacen a cambio de una mejora razonable en su capacidad de supervisión, adaptación y explotación. Aunque se trata de una solución local y académica, el resultado aproxima el proyecto a un escenario real de operación y sienta una base para posibles extensiones como MLflow, auto-retraining, canary deployment o estimación avanzada de degradación sin \textit{ground truth}.
