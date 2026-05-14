@@ -2,7 +2,6 @@
 
 > **Proyecto VinOps — Sistema de Clasificación de Cultivares de Vino**  
 > **Asignatura:** Desarrollo e Integración de Servicios de Inteligencia Artificial  
-> **Autor:** Pablo Alfonso López Fernández  
 > **Fecha:** Mayo 2026
 
 ---
